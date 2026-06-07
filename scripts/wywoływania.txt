@@ -1,0 +1,7 @@
+julia -t10 --project=. lioms_mag_phonon.jl -d 0.3 -w 1.0 -M 2 -T odd -P even -C yes
+
+julia -t10 --project=. lioms_mag.jl -d 0.3 --U_1 0.75 --U_2 0.75 -M 2 -T odd -P even -C yes
+
+julia -t10 --project=. lioms_ladder_grid.jl -d 0.3 -M 2 -T odd -P even -C yes --grid-U1 100 --grid-U2 100 --eig-index 1
+
+julia -t10 --project=. ed_autocorr_ladder.jl -d 0.3 --U_1 0.75 --U_2 0.75 -L 4 --tmax 100.0 --nt 501

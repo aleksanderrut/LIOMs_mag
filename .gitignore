@@ -1,0 +1,9 @@
+# Julia temporary/cache files
+*.ji
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Local Julia folders
+.julia/
