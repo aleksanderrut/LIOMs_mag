@@ -1,0 +1,12 @@
+J = 1.0
+Δ = 0.3
+ω_0 = 1.0
+g = 1.0
+max_supp = 2
+L = 6
+Behavior under time-reversal symmetry = both
+Behavior under parity = both
+Conserve Sz? = both
+Operators basis size = 240
+Number of LIOMs found = 2
+Elapsed time = 4.9321331 s

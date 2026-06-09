@@ -250,6 +250,53 @@ function all_M_ladder_leg_sym(L::Int, M::Int, time_reversal::Symbol, parity::Sym
   return ops, ops_list, ops_list_rows
 end
 
+function prepare_operator_basis(L::Int, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz::Symbol)
+  println("Generating operator basis...")
+  ops, ops_list, ops_list_rows = all_M_ladder_leg_sym(L, max_supp, time_reversal, parity, conserve_Sz)
+  println("Generated $(length(ops)) operators")
+  println("Computing norms...")
+
+  if length(ops) == 0
+    error("Empty operator basis after symmetry filtering.")
+  end
+
+  norms = hs_norm.(ops)
+  good = findall(x -> abs(x) > 1e-12, norms)
+  ops = ops[good]
+  ops_list = ops_list[good]
+  ops_list_rows = ops_list_rows[good]
+  norms = norms[good]
+
+  if length(ops) == 0
+    error("Empty operator basis after norm filtering.")
+  end
+
+  ops ./= norms
+
+  return ops, ops_list, ops_list_rows
+end
+
+function compute_evals_from_prepared_basis(H::ps.OperatorTS, ops::Vector{ps.OperatorTS})
+  comms = Vector{ps.OperatorTS}(undef, length(ops))
+
+  for i in eachindex(ops)
+    comms[i] = im * ps.com(H, ops[i])
+  end
+
+  corr_mat = zeros(Float64, length(ops), length(ops))
+
+  for i in eachindex(ops)
+    comm_i = comms[i]
+    for j in i:length(ops)
+      comm_j = comms[j]
+      corr_mat[i, j] = real(hs_product(comm_i, comm_j))
+      i != j && (corr_mat[j, i] = corr_mat[i, j])
+    end
+  end
+
+  return eigvals(Symmetric(corr_mat))
+end
+
 """
 compute_lioms(H, L, max_supp, time_reversal, parity, conserve_Sz)
 """
@@ -310,121 +357,52 @@ function save_operator_labels(filename, ops_list)
   end
 end
 
-"""
-Save all found LIOMs to one file, Output format:
-# LIOM k, eigenvalue = ...
-basis_element    coefficient
-"""
-function site_suffix(pos::Int)
-  pos == 1 && return "i"
-  return "i+$(pos - 1)"
-end
+function run_grid_scan(J::Float64, L::Int, Delta::Float64, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz::Symbol, grid_omega::Int, grid_g::Int, eig_index::Int, omega_min::Float64, omega_max::Float64, g_min::Float64, g_max::Float64)
+  println("Running omega/g grid scan mode.")
+  println("omega grid size = ", grid_omega)
+  println("g grid size = ", grid_g)
+  println("Eigenvalue index saved = ", eig_index)
+  println("omega range = [", omega_min, ", ", omega_max, "]")
+  println("g range = [", g_min, ", ", g_max, "]")
 
-function spin_string_from_list(op_list::Vector{Int})
-  parts = String[]
+  ops, ops_list, ops_list_rows = prepare_operator_basis(L, max_supp, time_reversal, parity, conserve_Sz)
 
-  for (pos, op) in enumerate(op_list)
-    op_name = symbol_map[op]
-    site = site_suffix(pos)
+  if eig_index > length(ops)
+    error("Requested eig-index = $eig_index, but basis size is only $(length(ops)).")
+  end
 
-    if op_name == "1"
-      push!(parts, "1_{$site}")
-    elseif op_name == "Sz"
-      push!(parts, "S^z_{$site}")
-    elseif op_name == "S+"
-      push!(parts, "S^+_{$site}")
-    elseif op_name == "S-"
-      push!(parts, "S^-_{$site}")
+  omega_values = collect(range(omega_min, omega_max, length = grid_omega))
+  g_values = collect(range(g_min, g_max, length = grid_g))
+
+  base_path = "$(@__DIR__)/liom_mag_dane"
+  grid_path = "$(base_path)/siatka_omega_g"
+  mkpath(grid_path)
+
+  file_tag = "grid_ladder_mag_M_$(max_supp)_J_$(J)_d_$(Delta)_T_$(time_reversal)_P_$(parity)_Sz_cons_$(conserve_Sz)_omegan_$(grid_omega)_gn_$(grid_g)_eig_$(eig_index)"
+  filename_grid = "$(grid_path)/$(file_tag).txt"
+
+  total_points = grid_omega * grid_g
+  p = Progress(total_points; desc = "Computing omega/g grid...", showspeed = true)
+
+  open(filename_grid, "w") do io
+    for omega_0 in omega_values
+      for g in g_values
+        H = XXZ_ladder(J, L, Delta, omega_0, g)
+        evals = compute_evals_from_prepared_basis(H, ops)
+
+        lambda = evals[eig_index]
+
+        println(io, omega_0, "	", g, "	", lambda)
+
+        next!(p)
+      end
     end
   end
 
-  return join(parts, " ")
-end
+  finish!(p)
 
-"""
-Save exact LIOMs and the first few nonzero modes to one file.
-
-Exact LIOMs are eigenvectors with eigenvalue abs(lambda) < eval_tol.
-Nonzero modes are the first n_nonzero eigenvectors with abs(lambda) >= eval_tol.
-
-Output format:
-# LIOM k
-# eigenvalue = ...
-translated_basis_element    basis_element    coefficient
-"""
-function save_lioms(filename, evals, evecs, ops_list, ops_list_rows; eval_tol = 1e-10, coeff_tol = 1e-8, n_nonzero = 3)
-  liom_indices = findall(x -> abs(x) < eval_tol, evals)
-  nonzero_indices = findall(x -> abs(x) >= eval_tol, evals)
-  nonzero_indices = nonzero_indices[1:min(n_nonzero, length(nonzero_indices))]
-
-  open(filename, "w") do io
-    println(io, "# Number of exact LIOMs found = ", length(liom_indices))
-    println(io, "# Number of saved nonzero modes = ", length(nonzero_indices))
-    println(io, "# eval_tol = ", eval_tol)
-    println(io, "# coeff_tol = ", coeff_tol)
-    println(io)
-
-    println(io, "# =========================")
-    println(io, "# EXACT LIOMs")
-    println(io, "# =========================")
-    println(io)
-
-    for (liom_number, j) in enumerate(liom_indices)
-      println(io, "# LIOM ", liom_number)
-      println(io, "# eigenvalue = ", evals[j])
-      println(io, "# translated_basis_element\tbasis_element\tcoefficient")
-
-      for i in eachindex(ops_list_rows)
-        coeff = evecs[i, j]
-
-        if abs(coeff) > coeff_tol
-          basis_label = strip(ops_list_rows[i])
-          basis_label = replace(basis_label, "\t" => " ")
-
-          upper_list, lower_list, upper_T, lower_T = ops_list[i]
-
-          translated_upper = spin_string_from_list(upper_list)
-          translated_lower = spin_string_from_list(lower_list)
-          translated_label = translated_upper * " | " * translated_lower
-
-          @printf(io, "%s\t%s\t%.16e\n", translated_label, basis_label, coeff)
-        end
-      end
-
-      println(io)
-    end
-
-    println(io)
-    println(io, "# =========================")
-    println(io, "# FIRST NONZERO MODES")
-    println(io, "# =========================")
-    println(io)
-
-    for (mode_number, j) in enumerate(nonzero_indices)
-      println(io, "# NONZERO MODE ", mode_number)
-      println(io, "# eigenvalue = ", evals[j])
-      println(io, "# translated_basis_element\tbasis_element\tcoefficient")
-
-      for i in eachindex(ops_list_rows)
-        coeff = evecs[i, j]
-
-        if abs(coeff) > coeff_tol
-          basis_label = strip(ops_list_rows[i])
-          basis_label = replace(basis_label, "\t" => " ")
-
-          upper_list, lower_list, upper_T, lower_T = ops_list[i]
-
-          translated_upper = spin_string_from_list(upper_list)
-          translated_lower = spin_string_from_list(lower_list)
-          translated_label = translated_upper * " | " * translated_lower
-
-          @printf(io, "%s\t%s\t%.16e\n", translated_label, basis_label, coeff)
-        end
-      end
-
-      println(io)
-    end
-  end
+  println("Grid scan saved to:")
+  println(filename_grid)
 end
 
 function parse_args()
@@ -458,6 +436,34 @@ function parse_args()
     help = "Conserve Sz on each leg? yes, no, both"
     arg_type = String
     default = "yes"
+    "--grid-omega"
+    help = "Number of grid points in omega direction. If > 1, grid scan mode is used."
+    arg_type = Int
+    default = 1
+    "--grid-g"
+    help = "Number of grid points in g direction. If > 1, grid scan mode is used."
+    arg_type = Int
+    default = 1
+    "--eig-index"
+    help = "Which eigenvalue to save: 1 for the smallest, 2 for the second smallest, etc."
+    arg_type = Int
+    default = 1
+    "--omega-min"
+    help = "Minimal omega value in grid scan"
+    arg_type = Float64
+    default = 0.0
+    "--omega-max"
+    help = "Maximal omega value in grid scan"
+    arg_type = Float64
+    default = 10.0
+    "--g-min"
+    help = "Minimal g value in grid scan"
+    arg_type = Float64
+    default = 0.0
+    "--g-max"
+    help = "Maximal g value in grid scan"
+    arg_type = Float64
+    default = 10.0
   end
   return ArgParse.parse_args(s)
 end
@@ -482,6 +488,13 @@ function main()
   max_supp = args["max-supp"]
   g = args["coupling"]
   L = 2 * max_supp + 2
+  grid_omega = args["grid-omega"]
+  grid_g = args["grid-g"]
+  eig_index = args["eig-index"]
+  omega_min = args["omega-min"]
+  omega_max = args["omega-max"]
+  g_min = args["g-min"]
+  g_max = args["g-max"]
 
   println("Parameters:")
   println("J = ", J)
@@ -494,6 +507,11 @@ function main()
   println("Behavior under parity = ", parity)
   println("Conserve Sz? = ", conserve_Sz)
 
+  if grid_omega > 1 || grid_g > 1
+    run_grid_scan(J, L, Delta, max_supp, time_reversal, parity, conserve_Sz, grid_omega, grid_g, eig_index, omega_min, omega_max, g_min, g_max)
+    return
+  end
+
   H = XXZ_ladder(J, L, Delta, omega_0, g)
   println("Hamiltonian:")
   println(H)
@@ -502,27 +520,23 @@ function main()
   evals, evecs, ops_list, ops_list_rows = compute_lioms(H, L, max_supp, time_reversal, parity, conserve_Sz)
   toc = time_ns()
 
-base_path = "$(@__DIR__)/liom_mag_dane"
-evals_path = "$(base_path)/wartosci_wlasne"
-evecs_path = "$(base_path)/wektory_wlasne"
-basis_path = "$(base_path)/bazy"
-logs_path = "$(base_path)/logi"
-lioms_path = "$(base_path)/LIOMs_found"
-mkpath(evals_path)
-mkpath(evecs_path)
-mkpath(basis_path)
-mkpath(logs_path)
-mkpath(lioms_path)
-file_tag = "ladder_mag_M_$(max_supp)_J_$(J)_d_$(Delta)_w_$(omega_0)_g_$(g)_T_$(time_reversal)_P_$(parity)_Sz_cons_$(conserve_Sz)"
-filename_evals = "$(evals_path)/eigenvalues_$(file_tag).txt"
-filename_evecs = "$(evecs_path)/eigenvectors_$(file_tag).txt"
-filename_operators = "$(basis_path)/operators_$(file_tag).txt"
-filename_log = "$(logs_path)/log_$(file_tag).txt"
-filename_lioms = "$(lioms_path)/LIOMs_$(file_tag).txt"
-writedlm(filename_evals, evals)
-writedlm(filename_evecs, evecs)
-save_operator_labels(filename_operators, ops_list)
-save_lioms(filename_lioms, evals, evecs, ops_list, ops_list_rows)
+  base_path = "$(@__DIR__)/liom_mag_dane"
+  evals_path = "$(base_path)/wartosci_wlasne"
+  evecs_path = "$(base_path)/wektory_wlasne"
+  basis_path = "$(base_path)/bazy"
+  logs_path = "$(base_path)/logi"
+  mkpath(evals_path)
+  mkpath(evecs_path)
+  mkpath(basis_path)
+  mkpath(logs_path)
+  file_tag = "ladder_mag_M_$(max_supp)_J_$(J)_d_$(Delta)_w_$(omega_0)_T_$(time_reversal)_P_$(parity)_Sz_cons_$(conserve_Sz)"
+  filename_evals = "$(evals_path)/eigenvalues_$(file_tag).txt"
+  filename_evecs = "$(evecs_path)/eigenvectors_$(file_tag).txt"
+  filename_operators = "$(basis_path)/operators_$(file_tag).txt"
+  filename_log = "$(logs_path)/log_$(file_tag).txt"
+  writedlm(filename_evals, evals)
+  writedlm(filename_evecs, evecs)
+  save_operator_labels(filename_operators, ops_list)
   open(filename_log, "w") do io
     println(io, "J = ", J)
     println(io, "Δ = ", Delta)
@@ -541,8 +555,6 @@ save_lioms(filename_lioms, evals, evecs, ops_list, ops_list_rows)
   max_evals = min(10, length(evals))
   println("$(max_evals) smallest eigenvalues:")
   println(evals[1:max_evals])
-  #List of operator basis elements with their coefficients in the LIOMs corresponding to the smallest eigenvalues.
-  
   println("$(max_evals) eigenvectors corrsponding to smallest eigenvalues:")
   max_label_width = maximum(length.(ops_list_rows))
 
@@ -556,7 +568,6 @@ save_lioms(filename_lioms, evals, evecs, ops_list, ops_list_rows)
     end
     println()
   end
-  
   println("Size of basis for M=$max_supp, restricted to time reversal = $time_reversal, parity = $parity, Sz conservation = $conserve_Sz: ", length(ops_list))
   println("Number of LIOMs found: ", count(x -> abs(x) < 1e-10, evals))
   println("Elapsed time: ", (toc - tic) / 1e9, " s")
