@@ -202,17 +202,18 @@ end
 """
 Generate ladder basis. M means support on one leg.
 """
-function all_M_ladder_leg_sym(L::Int, M::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz::Symbol)
+function all_M_ladder_leg_sym(L::Int, M::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol)
   ops = ps.OperatorTS[]
   ops_list = []
   ops_list_rows = String[]
 
-  legs = generate_leg_blocks(M, conserve_Sz)
+  upper_legs = generate_leg_blocks(M, conserve_Sz_fermion)
+  lower_legs = generate_leg_blocks(M, conserve_Sz_boson)
 
   #pęta po wszystkich kombinacjach opertorów na górenj i dolnej nodze
-  for upper in legs
+  for upper in upper_legs
     upper_list, upper_T, upper_P, upper_Sz = upper
-    for lower in legs
+    for lower in lower_legs
       lower_list, lower_T, lower_P, lower_Sz = lower
 
       #wyrzucenie 000|000
@@ -222,16 +223,12 @@ function all_M_ladder_leg_sym(L::Int, M::Int, time_reversal::Symbol, parity::Sym
       #policzenie współych smetrii opertora już na dwóch nogach
       total_T = compose_sector(upper_T, lower_T)
       total_P = compose_sector(upper_P, lower_P)
-      total_Sz = upper_Sz + lower_Sz
 
       (time_reversal == :even) && total_T != :even && continue
       (time_reversal == :odd) && total_T != :odd && continue
 
       (parity == :even) && total_P != :even && continue
       (parity == :odd) && total_P != :odd && continue
-
-      (conserve_Sz == :yes) && total_Sz != 0 && continue
-      (conserve_Sz == :no) && total_Sz == 0 && continue
 
       op = build_ladder_operator(upper_list, upper_T, lower_list, lower_T, L)
       #println("Operator basis element:")
@@ -250,9 +247,9 @@ function all_M_ladder_leg_sym(L::Int, M::Int, time_reversal::Symbol, parity::Sym
   return ops, ops_list, ops_list_rows
 end
 
-function prepare_operator_basis(L::Int, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz::Symbol)
+function prepare_operator_basis(L::Int, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol)
   println("Generating operator basis...")
-  ops, ops_list, ops_list_rows = all_M_ladder_leg_sym(L, max_supp, time_reversal, parity, conserve_Sz)
+  ops, ops_list, ops_list_rows = all_M_ladder_leg_sym(L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson)
   println("Generated $(length(ops)) operators")
   println("Computing norms...")
 
@@ -298,11 +295,11 @@ function compute_evals_from_prepared_basis(H::ps.OperatorTS, ops::Vector{ps.Oper
 end
 
 """
-compute_lioms(H, L, max_supp, time_reversal, parity, conserve_Sz)
+compute_lioms(H, L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson)
 """
-function compute_lioms(H::ps.OperatorTS, L::Int, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz::Symbol)
+function compute_lioms(H::ps.OperatorTS, L::Int, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol)
   println("Generating operators...")
-  ops, ops_list, ops_list_rows = all_M_ladder_leg_sym(L, max_supp, time_reversal, parity, conserve_Sz)
+  ops, ops_list, ops_list_rows = all_M_ladder_leg_sym(L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson)
   println("Generated $(length(ops)) operators")
   println("Computing norms...")
   if length(ops) == 0
@@ -357,15 +354,15 @@ function save_operator_labels(filename, ops_list)
   end
 end
 
-function run_grid_scan(J::Float64, L::Int, Delta::Float64, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz::Symbol, grid_omega::Int, grid_g::Int, eig_index::Int, omega_min::Float64, omega_max::Float64, g_min::Float64, g_max::Float64)
+function run_grid_scan(J::Float64, L::Int, Delta::Float64, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol, grid_omega::Int, grid_g::Int, eig_index::Int, omega_min::Float64, omega_max::Float64, g_min::Float64, g_max::Float64)
   println("Running omega/g grid scan mode.")
   println("omega grid size = ", grid_omega)
-  println("g grid size = ", grid_g)
+  println("g grid size = ", grid_g)   
   println("Eigenvalue index saved = ", eig_index)
   println("omega range = [", omega_min, ", ", omega_max, "]")
   println("g range = [", g_min, ", ", g_max, "]")
 
-  ops, ops_list, ops_list_rows = prepare_operator_basis(L, max_supp, time_reversal, parity, conserve_Sz)
+  ops, ops_list, ops_list_rows = prepare_operator_basis(L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson)
 
   if eig_index > length(ops)
     error("Requested eig-index = $eig_index, but basis size is only $(length(ops)).")
@@ -378,12 +375,12 @@ function run_grid_scan(J::Float64, L::Int, Delta::Float64, max_supp::Int, time_r
   grid_path = "$(base_path)/siatka_omega_g"
   mkpath(grid_path)
 
-  file_tag = "grid_ladder_mag_M_$(max_supp)_J_$(J)_d_$(Delta)_T_$(time_reversal)_P_$(parity)_Sz_cons_$(conserve_Sz)_omegan_$(grid_omega)_gn_$(grid_g)_eig_$(eig_index)"
+  file_tag = "grid_ladder_mag_M_$(max_supp)_J_$(J)_d_$(Delta)_T_$(time_reversal)_P_$(parity)_SzF_$(conserve_Sz_fermion)_SzB_$(conserve_Sz_boson)_omega_$(omega_min)_$(omega_max)_omegan_$(grid_omega)_g_$(g_min)_$(g_max)_gn_$(grid_g)_eig_$(eig_index)"
   filename_grid = "$(grid_path)/$(file_tag).txt"
-
   total_points = grid_omega * grid_g
   p = Progress(total_points; desc = "Computing omega/g grid...", showspeed = true)
 
+  filename_grid = "$(grid_path)/$(file_tag).txt"
   open(filename_grid, "w") do io
     for omega_0 in omega_values
       for g in g_values
@@ -432,10 +429,14 @@ function parse_args()
     help = "Total ladder parity sector: even, odd, both"
     arg_type = String
     default = "even"
-    "--conserve-Sz", "-C"
-    help = "Conserve Sz on each leg? yes, no, both"
+        "--conserve-Sz-fermion", "-F"
+    help = "Conserve Sz on the fermionic leg? yes, no, both"
     arg_type = String
     default = "yes"
+    "--conserve-Sz-boson", "-B"
+    help = "Conserve Sz on the bosonic leg? yes, no, both"
+    arg_type = String
+    default = "both"  
     "--grid-omega"
     help = "Number of grid points in omega direction. If > 1, grid scan mode is used."
     arg_type = Int
@@ -476,11 +477,15 @@ function main()
   allowed_parity = ["even", "odd", "both"]
   !(args["parity"] in allowed_parity) && error("Invalid --parity: $(args["parity"]). Must be one of $(allowed_parity)")
   allowed_conserve_Sz = ["yes", "no", "both"]
-  !(args["conserve-Sz"] in allowed_conserve_Sz) && error("Invalid --conserve-Sz: $(args["conserve-Sz"]). Must be one of $(allowed_conserve_Sz)")
-  time_reversal = Symbol(args["time-reversal"])
-  conserve_Sz = Symbol(args["conserve-Sz"])
-  parity = Symbol(args["parity"])
+  !(args["conserve-Sz-fermion"] in allowed_conserve_Sz) &&
+  error("Invalid --conserve-Sz-fermion: $(args["conserve-Sz-fermion"]). Must be one of $(allowed_conserve_Sz)")
+  !(args["conserve-Sz-boson"] in allowed_conserve_Sz) &&
+  error("Invalid --conserve-Sz-boson: $(args["conserve-Sz-boson"]). Must be one of $(allowed_conserve_Sz)")
 
+  time_reversal = Symbol(args["time-reversal"])
+  parity = Symbol(args["parity"])
+  conserve_Sz_fermion = Symbol(args["conserve-Sz-fermion"])
+  conserve_Sz_boson = Symbol(args["conserve-Sz-boson"])
   # Parameters
   J = 1.0
   Delta = args["delta"]
@@ -505,10 +510,11 @@ function main()
   println("L = ", L)
   println("Behavior under time-reversal symmetry = ", time_reversal)
   println("Behavior under parity = ", parity)
-  println("Conserve Sz? = ", conserve_Sz)
+  println("Conserve Sz on fermionic leg? = ", conserve_Sz_fermion)
+  println("Conserve Sz on bosonic leg? = ", conserve_Sz_boson)
 
   if grid_omega > 1 || grid_g > 1
-    run_grid_scan(J, L, Delta, max_supp, time_reversal, parity, conserve_Sz, grid_omega, grid_g, eig_index, omega_min, omega_max, g_min, g_max)
+    run_grid_scan(J, L, Delta, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson, grid_omega, grid_g, eig_index, omega_min, omega_max, g_min, g_max)
     return
   end
 
@@ -517,7 +523,7 @@ function main()
   println(H)
 
   tic = time_ns()
-  evals, evecs, ops_list, ops_list_rows = compute_lioms(H, L, max_supp, time_reversal, parity, conserve_Sz)
+  evals, evecs, ops_list, ops_list_rows = compute_lioms(H, L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson)
   toc = time_ns()
 
   base_path = "$(@__DIR__)/liom_mag_dane"
@@ -529,7 +535,7 @@ function main()
   mkpath(evecs_path)
   mkpath(basis_path)
   mkpath(logs_path)
-  file_tag = "ladder_mag_M_$(max_supp)_J_$(J)_d_$(Delta)_w_$(omega_0)_T_$(time_reversal)_P_$(parity)_Sz_cons_$(conserve_Sz)"
+  file_tag = "ladder_mag_M_$(max_supp)_J_$(J)_d_$(Delta)_w_$(omega_0)_T_$(time_reversal)_P_$(parity)_Sz_cons_$(conserve_Sz_fermion)_$(conserve_Sz_boson)"
   filename_evals = "$(evals_path)/eigenvalues_$(file_tag).txt"
   filename_evecs = "$(evecs_path)/eigenvectors_$(file_tag).txt"
   filename_operators = "$(basis_path)/operators_$(file_tag).txt"
@@ -546,7 +552,8 @@ function main()
     println(io, "L = ", L)
     println(io, "Behavior under time-reversal symmetry = ", time_reversal)
     println(io, "Behavior under parity = ", parity)
-    println(io, "Conserve Sz? = ", conserve_Sz)
+    println(io, "Conserve Sz on fermionic leg? = ", conserve_Sz_fermion)
+    println(io, "Conserve Sz on bosonic leg? = ", conserve_Sz_boson)
     println(io, "Operators basis size = ", length(ops_list))
     println(io, "Number of LIOMs found = ", count(x -> abs(x) < 1e-10, evals))
     println(io, "Elapsed time = ", (toc - tic) / 1e9, " s")
@@ -568,7 +575,7 @@ function main()
     end
     println()
   end
-  println("Size of basis for M=$max_supp, restricted to time reversal = $time_reversal, parity = $parity, Sz conservation = $conserve_Sz: ", length(ops_list))
+  println("Size of basis for M=$max_supp, restricted to time reversal = $time_reversal, parity = $parity, Sz conservation = $conserve_Sz_fermion/$conserve_Sz_boson: ", length(ops_list))
   println("Number of LIOMs found: ", count(x -> abs(x) < 1e-10, evals))
   println("Elapsed time: ", (toc - tic) / 1e9, " s")
 end

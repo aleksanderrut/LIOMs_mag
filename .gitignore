@@ -7,3 +7,9 @@ Thumbs.db
 
 # Local Julia folders
 .julia/
+
+# Calculation results
+/scripts/liom_mag_dane/
+
+# Generated plots
+/plots/

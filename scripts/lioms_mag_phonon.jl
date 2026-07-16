@@ -202,17 +202,18 @@ end
 """
 Generate ladder basis. M means support on one leg.
 """
-function all_M_ladder_leg_sym(L::Int, M::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz::Symbol)
+function all_M_ladder_leg_sym(L::Int, M::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol)
   ops = ps.OperatorTS[]
   ops_list = []
   ops_list_rows = String[]
 
-  legs = generate_leg_blocks(M, conserve_Sz)
+  upper_legs = generate_leg_blocks(M, conserve_Sz_fermion)
+  lower_legs = generate_leg_blocks(M, conserve_Sz_boson)
 
   #pęta po wszystkich kombinacjach opertorów na górenj i dolnej nodze
-  for upper in legs
+  for upper in upper_legs
     upper_list, upper_T, upper_P, upper_Sz = upper
-    for lower in legs
+    for lower in lower_legs
       lower_list, lower_T, lower_P, lower_Sz = lower
 
       #wyrzucenie 000|000
@@ -222,16 +223,12 @@ function all_M_ladder_leg_sym(L::Int, M::Int, time_reversal::Symbol, parity::Sym
       #policzenie współych smetrii opertora już na dwóch nogach
       total_T = compose_sector(upper_T, lower_T)
       total_P = compose_sector(upper_P, lower_P)
-      total_Sz = upper_Sz + lower_Sz
 
       (time_reversal == :even) && total_T != :even && continue
       (time_reversal == :odd) && total_T != :odd && continue
 
       (parity == :even) && total_P != :even && continue
       (parity == :odd) && total_P != :odd && continue
-
-      (conserve_Sz == :yes) && total_Sz != 0 && continue
-      (conserve_Sz == :no) && total_Sz == 0 && continue
 
       op = build_ladder_operator(upper_list, upper_T, lower_list, lower_T, L)
       #println("Operator basis element:")
@@ -253,9 +250,9 @@ end
 """
 compute_lioms(H, L, max_supp, time_reversal, parity, conserve_Sz)
 """
-function compute_lioms(H::ps.OperatorTS, L::Int, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz::Symbol)
+function compute_lioms(H::ps.OperatorTS, L::Int, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol)
   println("Generating operators...")
-  ops, ops_list, ops_list_rows = all_M_ladder_leg_sym(L, max_supp, time_reversal, parity, conserve_Sz)
+  ops, ops_list, ops_list_rows = all_M_ladder_leg_sym(L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson)
   println("Generated $(length(ops)) operators")
   println("Computing norms...")
   if length(ops) == 0
@@ -370,58 +367,64 @@ function save_lioms(filename, evals, evecs, ops_list, ops_list_rows; eval_tol = 
     println(io)
 
     for (liom_number, j) in enumerate(liom_indices)
+      squared_coeffs = abs2.(evecs[:, j])
+      sorted_indices = sortperm(squared_coeffs, rev = true)
+
       println(io, "# LIOM ", liom_number)
       println(io, "# eigenvalue = ", evals[j])
-      println(io, "# translated_basis_element\tbasis_element\tcoefficient")
+      println(io, "# sum of squared coefficients = ", sum(squared_coeffs))
+      println(io, "# translated_basis_element\tbasis_element\tsquared_coefficient")
 
-      for i in eachindex(ops_list_rows)
-        coeff = evecs[i, j]
-
-        if abs(coeff) > coeff_tol
+      for i in sorted_indices
+        squared_coeff = squared_coeffs[i]
+        if squared_coeff > coeff_tol^2
           basis_label = strip(ops_list_rows[i])
           basis_label = replace(basis_label, "\t" => " ")
-
           upper_list, lower_list, upper_T, lower_T = ops_list[i]
-
           translated_upper = spin_string_from_list(upper_list)
           translated_lower = spin_string_from_list(lower_list)
           translated_label = translated_upper * " | " * translated_lower
-
-          @printf(io, "%s\t%s\t%.16e\n", translated_label, basis_label, coeff)
+          @printf(
+            io,
+            "%s\t%s\t%.16e\n",
+            translated_label,
+            basis_label,
+            squared_coeff
+          )
         end
       end
-
       println(io)
     end
-
     println(io)
     println(io, "# =========================")
     println(io, "# FIRST NONZERO MODES")
     println(io, "# =========================")
     println(io)
-
     for (mode_number, j) in enumerate(nonzero_indices)
+      squared_coeffs = abs2.(evecs[:, j])
+      sorted_indices = sortperm(squared_coeffs, rev = true)
       println(io, "# NONZERO MODE ", mode_number)
       println(io, "# eigenvalue = ", evals[j])
-      println(io, "# translated_basis_element\tbasis_element\tcoefficient")
-
-      for i in eachindex(ops_list_rows)
-        coeff = evecs[i, j]
-
-        if abs(coeff) > coeff_tol
+      println(io, "# sum of squared coefficients = ", sum(squared_coeffs))
+      println(io, "# translated_basis_element\tbasis_element\tsquared_coefficient")
+      for i in sorted_indices
+        squared_coeff = squared_coeffs[i]
+        if squared_coeff > coeff_tol^2
           basis_label = strip(ops_list_rows[i])
           basis_label = replace(basis_label, "\t" => " ")
-
           upper_list, lower_list, upper_T, lower_T = ops_list[i]
-
           translated_upper = spin_string_from_list(upper_list)
           translated_lower = spin_string_from_list(lower_list)
           translated_label = translated_upper * " | " * translated_lower
-
-          @printf(io, "%s\t%s\t%.16e\n", translated_label, basis_label, coeff)
+          @printf(
+            io,
+            "%s\t%s\t%.16e\n",
+            translated_label,
+            basis_label,
+            squared_coeff
+          )
         end
       end
-
       println(io)
     end
   end
@@ -454,10 +457,14 @@ function parse_args()
     help = "Total ladder parity sector: even, odd, both"
     arg_type = String
     default = "even"
-    "--conserve-Sz", "-C"
-    help = "Conserve Sz on each leg? yes, no, both"
+    "--conserve-Sz-fermion", "-F"
+    help = "Conserve Sz on the fermionic leg? yes, no, both"
     arg_type = String
     default = "yes"
+    "--conserve-Sz-boson", "-B"
+    help = "Conserve Sz on the bosonic leg? yes, no, both"
+    arg_type = String
+    default = "both"
   end
   return ArgParse.parse_args(s)
 end
@@ -470,9 +477,13 @@ function main()
   allowed_parity = ["even", "odd", "both"]
   !(args["parity"] in allowed_parity) && error("Invalid --parity: $(args["parity"]). Must be one of $(allowed_parity)")
   allowed_conserve_Sz = ["yes", "no", "both"]
-  !(args["conserve-Sz"] in allowed_conserve_Sz) && error("Invalid --conserve-Sz: $(args["conserve-Sz"]). Must be one of $(allowed_conserve_Sz)")
+  !(args["conserve-Sz-fermion"] in allowed_conserve_Sz) &&
+  error("Invalid --conserve-Sz-fermion: $(args["conserve-Sz-fermion"]). Must be one of $(allowed_conserve_Sz)")
+  !(args["conserve-Sz-boson"] in allowed_conserve_Sz) &&
+  error("Invalid --conserve-Sz-boson: $(args["conserve-Sz-boson"]). Must be one of $(allowed_conserve_Sz)")
   time_reversal = Symbol(args["time-reversal"])
-  conserve_Sz = Symbol(args["conserve-Sz"])
+  conserve_Sz_fermion = Symbol(args["conserve-Sz-fermion"])
+  conserve_Sz_boson = Symbol(args["conserve-Sz-boson"])
   parity = Symbol(args["parity"])
 
   # Parameters
@@ -492,14 +503,15 @@ function main()
   println("L = ", L)
   println("Behavior under time-reversal symmetry = ", time_reversal)
   println("Behavior under parity = ", parity)
-  println("Conserve Sz? = ", conserve_Sz)
+  println("Conserve Sz on fermionic leg? = ", conserve_Sz_fermion)
+  println("Conserve Sz on bosonic leg? = ", conserve_Sz_boson)
 
   H = XXZ_ladder(J, L, Delta, omega_0, g)
   println("Hamiltonian:")
   println(H)
 
   tic = time_ns()
-  evals, evecs, ops_list, ops_list_rows = compute_lioms(H, L, max_supp, time_reversal, parity, conserve_Sz)
+  evals, evecs, ops_list, ops_list_rows = compute_lioms(H, L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson)
   toc = time_ns()
 
 base_path = "$(@__DIR__)/liom_mag_dane"
@@ -513,7 +525,7 @@ mkpath(evecs_path)
 mkpath(basis_path)
 mkpath(logs_path)
 mkpath(lioms_path)
-file_tag = "ladder_mag_M_$(max_supp)_J_$(J)_d_$(Delta)_w_$(omega_0)_g_$(g)_T_$(time_reversal)_P_$(parity)_Sz_cons_$(conserve_Sz)"
+file_tag = "ladder_mag_M_$(max_supp)_J_$(J)_d_$(Delta)_w_$(omega_0)_g_$(g)_T_$(time_reversal)_P_$(parity)_Sz_cons_fermion_$(conserve_Sz_fermion)_Sz_cons_boson_$(conserve_Sz_boson)"
 filename_evals = "$(evals_path)/eigenvalues_$(file_tag).txt"
 filename_evecs = "$(evecs_path)/eigenvectors_$(file_tag).txt"
 filename_operators = "$(basis_path)/operators_$(file_tag).txt"
@@ -532,7 +544,8 @@ save_lioms(filename_lioms, evals, evecs, ops_list, ops_list_rows)
     println(io, "L = ", L)
     println(io, "Behavior under time-reversal symmetry = ", time_reversal)
     println(io, "Behavior under parity = ", parity)
-    println(io, "Conserve Sz? = ", conserve_Sz)
+    println(io, "Conserve Sz on fermionic leg? = ", conserve_Sz_fermion)
+    println(io, "Conserve Sz on bosonic leg? = ", conserve_Sz_boson)
     println(io, "Operators basis size = ", length(ops_list))
     println(io, "Number of LIOMs found = ", count(x -> abs(x) < 1e-10, evals))
     println(io, "Elapsed time = ", (toc - tic) / 1e9, " s")
@@ -557,7 +570,7 @@ save_lioms(filename_lioms, evals, evecs, ops_list, ops_list_rows)
     println()
   end
   
-  println("Size of basis for M=$max_supp, restricted to time reversal = $time_reversal, parity = $parity, Sz conservation = $conserve_Sz: ", length(ops_list))
+  println("Size of basis for M=$max_supp, " * "time reversal = $time_reversal, " * "parity = $parity, " * "fermionic Sz = $conserve_Sz_fermion, " * "bosonic Sz = $conserve_Sz_boson: ", length(ops_list))
   println("Number of LIOMs found: ", count(x -> abs(x) < 1e-10, evals))
   println("Elapsed time: ", (toc - tic) / 1e9, " s")
 end
