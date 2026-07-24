@@ -273,25 +273,84 @@ function prepare_operator_basis(L::Int, max_supp::Int, time_reversal::Symbol, pa
   return ops, ops_list, ops_list_rows
 end
 
-function compute_evals_from_prepared_basis(H::ps.OperatorTS, ops::Vector{ps.OperatorTS})
+"""
+Compute eigenvalues and eigenvectors using an already prepared
+and normalized operator basis.
+"""
+function compute_eigensystem_from_prepared_basis(
+  H::ps.OperatorTS,
+  ops::Vector{ps.OperatorTS}
+)
   comms = Vector{ps.OperatorTS}(undef, length(ops))
 
+  # Bez println i bez osobnego paska postępu
   for i in eachindex(ops)
     comms[i] = im * ps.com(H, ops[i])
   end
 
   corr_mat = zeros(Float64, length(ops), length(ops))
 
-  for i in eachindex(ops)
+  # Obliczanie macierzy pozostaje wielowątkowe
+  @threads :greedy for i in eachindex(ops)
     comm_i = comms[i]
+
     for j in i:length(ops)
       comm_j = comms[j]
-      corr_mat[i, j] = real(hs_product(comm_i, comm_j))
-      i != j && (corr_mat[j, i] = corr_mat[i, j])
+
+      corr_mat[i, j] = real(
+        hs_product(comm_i, comm_j)
+      )
+
+      i != j && (
+        corr_mat[j, i] = corr_mat[i, j]
+      )
     end
   end
 
-  return eigvals(Symmetric(corr_mat))
+  F = eigen(Symmetric(corr_mat))
+
+  return F.values, F.vectors
+end
+
+"""
+Save one selected eigenvector for one omega/g point.
+Output format:
+omega_0    g    basis_index:squared_coefficient;basis_index:squared_coefficient;...
+"""
+function save_grid_liom_row(io, omega_0::Real, g::Real, eigenvector::AbstractVector; coeff_sq_tol::Float64 = 1e-15)
+  squared_coeffs = abs2.(eigenvector)
+  # Pierwsza i druga kolumna: omega_0 oraz g
+  @printf(
+    io,
+    "%.16e\t%.16e\t",
+    omega_0,
+    g
+  )
+
+  first_saved = true
+
+  # Naturalna kolejność elementów bazy: 1, 2, 3, ...
+  for i in eachindex(squared_coeffs)
+    squared_coeff = squared_coeffs[i]
+
+    # Zapisujemy tylko kwadraty współczynników > 10^-15
+    if squared_coeff > coeff_sq_tol
+      if !first_saved
+        print(io, ";")
+      end
+
+      @printf(
+        io,
+        "%d:%.16e",
+        i,
+        squared_coeff
+      )
+
+      first_saved = false
+    end
+  end
+
+  println(io)
 end
 
 """
@@ -354,52 +413,182 @@ function save_operator_labels(filename, ops_list)
   end
 end
 
-function run_grid_scan(J::Float64, L::Int, Delta::Float64, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol, grid_omega::Int, grid_g::Int, eig_index::Int, omega_min::Float64, omega_max::Float64, g_min::Float64, g_max::Float64)
+function run_grid_scan(
+  J::Float64,
+  L::Int,
+  Delta::Float64,
+  max_supp::Int,
+  time_reversal::Symbol,
+  parity::Symbol,
+  conserve_Sz_fermion::Symbol,
+  conserve_Sz_boson::Symbol,
+  grid_omega::Int,
+  grid_g::Int,
+  eig_index::Int,
+  omega_min::Float64,
+  omega_max::Float64,
+  g_min::Float64,
+  g_max::Float64
+)
   println("Running omega/g grid scan mode.")
   println("omega grid size = ", grid_omega)
-  println("g grid size = ", grid_g)   
-  println("Eigenvalue index saved = ", eig_index)
+  println("g grid size = ", grid_g)
+  println("Eigenvalue/eigenvector index saved = ", eig_index)
   println("omega range = [", omega_min, ", ", omega_max, "]")
   println("g range = [", g_min, ", ", g_max, "]")
+  println("Squared coefficient tolerance = 1e-15")
 
-  ops, ops_list, ops_list_rows = prepare_operator_basis(L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson)
+  # Baza jest przygotowywana tylko raz dla całej siatki
+  ops, _, _ = prepare_operator_basis(
+    L,
+    max_supp,
+    time_reversal,
+    parity,
+    conserve_Sz_fermion,
+    conserve_Sz_boson
+  )
 
-  if eig_index > length(ops)
-    error("Requested eig-index = $eig_index, but basis size is only $(length(ops)).")
+  if eig_index < 1 || eig_index > length(ops)
+    error(
+      "Requested eig-index = $eig_index, " *
+      "but the allowed range is 1:$(length(ops))."
+    )
   end
 
-  omega_values = collect(range(omega_min, omega_max, length = grid_omega))
-  g_values = collect(range(g_min, g_max, length = grid_g))
+  omega_values = collect(
+    range(
+      omega_min,
+      omega_max;
+      length = grid_omega
+    )
+  )
 
-  base_path = "$(@__DIR__)/liom_mag_dane"
-  grid_path = "$(base_path)/siatka_omega_g"
+  g_values = collect(
+    range(
+      g_min,
+      g_max;
+      length = grid_g
+    )
+  )
+
+  base_path = joinpath(
+    @__DIR__,
+    "liom_mag_dane"
+  )
+
+  # Dotychczasowy folder z wartościami własnymi
+  grid_path = joinpath(
+    base_path,
+    "siatka_omega_g"
+  )
+
+  # Nowy folder ze współczynnikami wybranego LIOM-u/modu
+  lioms_grid_path = joinpath(
+    base_path,
+    "siatka_omega_g_liomsy"
+  )
+
   mkpath(grid_path)
+  mkpath(lioms_grid_path)
 
-  file_tag = "grid_ladder_mag_M_$(max_supp)_J_$(J)_d_$(Delta)_T_$(time_reversal)_P_$(parity)_SzF_$(conserve_Sz_fermion)_SzB_$(conserve_Sz_boson)_omega_$(omega_min)_$(omega_max)_omegan_$(grid_omega)_g_$(g_min)_$(g_max)_gn_$(grid_g)_eig_$(eig_index)"
-  filename_grid = "$(grid_path)/$(file_tag).txt"
+  file_tag =
+    "grid_ladder_mag" *
+    "_M_$(max_supp)" *
+    "_J_$(J)" *
+    "_d_$(Delta)" *
+    "_T_$(time_reversal)" *
+    "_P_$(parity)" *
+    "_SzF_$(conserve_Sz_fermion)" *
+    "_SzB_$(conserve_Sz_boson)" *
+    "_omega_$(omega_min)_$(omega_max)" *
+    "_omegan_$(grid_omega)" *
+    "_g_$(g_min)_$(g_max)" *
+    "_gn_$(grid_g)" *
+    "_eig_$(eig_index)"
+
+  # Dotychczasowy plik:
+  # omega_0    g    lambda
+  filename_grid = joinpath(
+    grid_path,
+    file_tag * ".txt"
+  )
+
+  # Nowy plik:
+  # omega_0    g    indeks:kwadrat;indeks:kwadrat;...
+  filename_lioms_grid = joinpath(
+    lioms_grid_path,
+    "lioms_" * file_tag * ".txt"
+  )
+
   total_points = grid_omega * grid_g
-  p = Progress(total_points; desc = "Computing omega/g grid...", showspeed = true)
 
-  filename_grid = "$(grid_path)/$(file_tag).txt"
-  open(filename_grid, "w") do io
-    for omega_0 in omega_values
-      for g in g_values
-        H = XXZ_ladder(J, L, Delta, omega_0, g)
-        evals = compute_evals_from_prepared_basis(H, ops)
+  p = Progress(
+    total_points;
+    desc = "Computing omega/g grid...",
+    showspeed = true
+  )
 
-        lambda = evals[eig_index]
+  open(filename_grid, "w") do io_evals
+    open(filename_lioms_grid, "w") do io_lioms
 
-        println(io, omega_0, "	", g, "	", lambda)
+      for omega_0 in omega_values
+        for g in g_values
+          H = XXZ_ladder(
+            J,
+            L,
+            Delta,
+            omega_0,
+            g
+          )
 
-        next!(p)
+          # Jedna diagonalizacja dla danego punktu
+          evals, evecs =
+            compute_eigensystem_from_prepared_basis(
+              H,
+              ops
+            )
+
+          lambda = evals[eig_index]
+
+          # Dotychczasowy plik z wartością własną
+          @printf(
+            io_evals,
+            "%.16e\t%.16e\t%.16e\n",
+            omega_0,
+            g,
+            lambda
+          )
+
+          # Wybrany wektor własny tylko chwilowo w pamięci
+          selected_eigenvector = view(
+            evecs,
+            :,
+            eig_index
+          )
+
+          # Nowy plik z kwadratami współczynników
+          save_grid_liom_row(
+            io_lioms,
+            omega_0,
+            g,
+            selected_eigenvector;
+            coeff_sq_tol = 1e-15
+          )
+
+          next!(p)
+        end
       end
+
     end
   end
 
   finish!(p)
 
-  println("Grid scan saved to:")
+  println("Eigenvalue grid saved to:")
   println(filename_grid)
+
+  println("LIOM coefficient grid saved to:")
+  println(filename_lioms_grid)
 end
 
 function parse_args()
