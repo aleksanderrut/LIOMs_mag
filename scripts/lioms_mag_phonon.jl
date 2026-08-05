@@ -530,8 +530,8 @@ function main()
   println("Include fermionic identity-only leg? = ", include_fermion_identity)
 
   H = XXZ_ladder(J, L, Delta, omega_0, g, J_prime)
-  println("Hamiltonian:")
-  println(H)
+  #println("Hamiltonian:")
+  #println(H)
 
   tic = time_ns()
   evals, evecs, ops_list, ops_list_rows = compute_lioms(H, L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson, include_fermion_identity)
@@ -582,19 +582,19 @@ save_lioms(filename_lioms, evals, evecs, ops_list, ops_list_rows)
   println(evals[1:max_evals])
   #List of operator basis elements with their coefficients in the LIOMs corresponding to the smallest eigenvalues.
   
-  println("$(max_evals) eigenvectors corrsponding to smallest eigenvalues:")
-  max_label_width = maximum(length.(ops_list_rows))
+  # println("$(max_evals) eigenvectors corrsponding to smallest eigenvalues:")
+  # max_label_width = maximum(length.(ops_list_rows))
 
-  for i in eachindex(ops_list_rows)
-    op_str = ops_list_rows[i]
-    print("∑_l ", rpad(op_str, max_label_width), "   ")
-    for j in 1:max_evals
-      num_str = @sprintf("% .5f", evecs[i, j])
-      num_str = replace(num_str, " -" => "-")
-      print(" ", num_str)
-    end
-    println()
-  end
+  # for i in eachindex(ops_list_rows)
+  #   op_str = ops_list_rows[i]
+  #   print("∑_l ", rpad(op_str, max_label_width), "   ")
+  #   for j in 1:max_evals
+  #     num_str = @sprintf("% .5f", evecs[i, j])
+  #     num_str = replace(num_str, " -" => "-")
+  #     print(" ", num_str)
+  #   end
+  #   println()
+  # end
   
   println("Size of basis for M=$max_supp, " * "time reversal = $time_reversal, " * "parity = $parity, " * "fermionic Sz = $conserve_Sz_fermion, " * "bosonic Sz = $conserve_Sz_boson, " * "fermionic identity included = $include_fermion_identity: ", length(ops_list))
   println("Number of LIOMs found: ", count(x -> abs(x) < 1e-10, evals))
