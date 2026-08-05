@@ -551,12 +551,12 @@ mkpath(lioms_path)
 fid_tag = include_fermion_identity ? "yes" : "no"
 file_tag = "M$(max_supp)_Jp$(J_prime)_d$(Delta)_w$(omega_0)_g$(g)_T$(time_reversal)_P$(parity)_F$(conserve_Sz_fermion)_B$(conserve_Sz_boson)_FId$(fid_tag)"
 filename_evals = "$(evals_path)/eigenvalues_$(file_tag).txt"
-filename_evecs = "$(evecs_path)/eigenvectors_$(file_tag).txt"
+#filename_evecs = "$(evecs_path)/eigenvectors_$(file_tag).txt"
 filename_operators = "$(basis_path)/operators_$(file_tag).txt"
 filename_log = "$(logs_path)/log_$(file_tag).txt"
 filename_lioms = "$(lioms_path)/LIOMs_$(file_tag).txt"
 writedlm(filename_evals, evals)
-writedlm(filename_evecs, evecs)
+#writedlm(filename_evecs, evecs)
 save_operator_labels(filename_operators, ops_list)
 save_lioms(filename_lioms, evals, evecs, ops_list, ops_list_rows)
   open(filename_log, "w") do io

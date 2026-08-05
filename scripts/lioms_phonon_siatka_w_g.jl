@@ -325,7 +325,7 @@ Save one selected eigenvector for one omega/g point.
 Output format:
 omega_0    g    basis_index:squared_coefficient;basis_index:squared_coefficient;...
 """
-function save_grid_liom_row(io, omega_0::Real, g::Real, eigenvector::AbstractVector; coeff_sq_tol::Float64 = 1e-15)
+function save_grid_liom_row(io, omega_0::Real, g::Real, eigenvector::AbstractVector; coeff_sq_tol::Float64 = 1e-6)
   squared_coeffs = abs2.(eigenvector)
   # Pierwsza i druga kolumna: omega_0 oraz g
   @printf(
@@ -477,35 +477,27 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, max
   mkpath(grid_path)
   mkpath(lioms_grid_path)
 
-  file_tag =
-    "grid_ladder_mag" *
-    "_M_$(max_supp)" *
-    "_J_$(J)" *
-    "_Jp_$(J_prime)" *
-    "_d_$(Delta)" *
-    "_T_$(time_reversal)" *
-    "_P_$(parity)" *
-    "_SzF_$(conserve_Sz_fermion)" *
-    "_SzB_$(conserve_Sz_boson)" *
-    "_FId_$(include_fermion_identity)" *
-    "_omega_$(omega_min)_$(omega_max)" *
-    "_omegan_$(grid_omega)" *
-    "_g_$(g_min)_$(g_max)" *
-    "_gn_$(grid_g)" *
-    "_eig_$(eig_index)"
+fid_tag = include_fermion_identity ? "yes" : "no"
 
-  # Dotychczasowy plik:
-  # omega_0    g    lambda
+file_tag =
+  "M$(max_supp)" *
+  "_Jp$(J_prime)" *
+  "_d$(Delta)" *
+  "_T$(time_reversal)" *
+  "_P$(parity)" *
+  "_F$(conserve_Sz_fermion)" *
+  "_B$(conserve_Sz_boson)" *
+  "_FId$(fid_tag)" *
+  "_eig$(eig_index)"
+
   filename_grid = joinpath(
-    grid_path,
-    file_tag * ".txt"
+  grid_path,
+  "grid_" * file_tag * ".txt"
   )
 
-  # Nowy plik:
-  # omega_0    g    indeks:kwadrat;indeks:kwadrat;...
   filename_lioms_grid = joinpath(
-    lioms_grid_path,
-    "lioms_" * file_tag * ".txt"
+  lioms_grid_path,
+  "lioms_grid_" * file_tag * ".txt"
   )
 
   total_points = grid_omega * grid_g

@@ -28,6 +28,9 @@ for DELTA in 0.8 1.5; do
                 -F yes \
                 -B both
 
+            echo "Zakończono: d=$DELTA, Jp=$J_PRIME, FId=$FID"
+            echo "Czas zakończenia: $(date)"
+            
         done
     done
 done
