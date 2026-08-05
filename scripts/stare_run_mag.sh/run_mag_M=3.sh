@@ -1,46 +1,32 @@
 #!/bin/bash
 
 set -euo pipefail
+cd "$(dirname "$0")"
 
 THREADS=10
-M=3
-OMEGA=0.5
-G=1.0
 
-echo "Start wszystkich obliczeń: $(date)"
+mkdir -p liom_mag_dane/batch_logs
+LOG="liom_mag_dane/batch_logs/run_M3_$(date +%Y%m%d_%H%M%S).log"
+
+exec > >(tee -a "$LOG") 2>&1
 
 for DELTA in 0.8 1.5; do
     for J_PRIME in 0.0 0.25; do
-        for FERMION_IDENTITY in no yes; do
+        for FID in no yes; do
 
-            LOG_FILE="run_M${M}_d${DELTA}_w${OMEGA}_g${G}_Jp${J_PRIME}_FId${FERMION_IDENTITY}.log"
-
-            echo "=================================================="
-            echo "Start obliczenia: $(date)"
-            echo "M=${M}"
-            echo "delta=${DELTA}"
-            echo "omega=${OMEGA}"
-            echo "g=${G}"
-            echo "J-prime=${J_PRIME}"
-            echo "include-fermion-identity=${FERMION_IDENTITY}"
-            echo "Log: ${LOG_FILE}"
-            echo "=================================================="
+            echo "Start: d=$DELTA, Jp=$J_PRIME, FId=$FID"
 
             julia -t "$THREADS" --project=. lioms_mag_phonon.jl \
                 -d "$DELTA" \
-                -w "$OMEGA" \
-                -g "$G" \
-                -M "$M" \
+                -w 0.5 \
+                -g 1.0 \
+                -M 3 \
                 --J-prime "$J_PRIME" \
-                --include-fermion-identity "$FERMION_IDENTITY" \
+                --include-fermion-identity "$FID" \
                 -T both \
                 -P both \
                 -F yes \
-                -B both \
-                2>&1 | tee "$LOG_FILE"
-
-            echo "Zakończono obliczenie: $(date)"
-            echo
+                -B both
 
         done
     done
