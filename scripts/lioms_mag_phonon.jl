@@ -548,7 +548,8 @@ mkpath(evecs_path)
 mkpath(basis_path)
 mkpath(logs_path)
 mkpath(lioms_path)
-file_tag = "ladder_mag_M_$(max_supp)_J_$(J)_Jp_$(J_prime)_d_$(Delta)_w_$(omega_0)_g_$(g)_T_$(time_reversal)_P_$(parity)_Sz_cons_fermion_$(conserve_Sz_fermion)_Sz_cons_boson_$(conserve_Sz_boson)_FId_$(include_fermion_identity)"
+fid_tag = include_fermion_identity ? "yes" : "no"
+file_tag = "M$(max_supp)_Jp$(J_prime)_d$(Delta)_w$(omega_0)_g$(g)_T$(time_reversal)_P$(parity)_F$(conserve_Sz_fermion)_B$(conserve_Sz_boson)_FId$(fid_tag)"
 filename_evals = "$(evals_path)/eigenvalues_$(file_tag).txt"
 filename_evecs = "$(evecs_path)/eigenvectors_$(file_tag).txt"
 filename_operators = "$(basis_path)/operators_$(file_tag).txt"
