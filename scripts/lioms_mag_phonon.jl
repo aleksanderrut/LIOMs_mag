@@ -9,10 +9,10 @@ using ArgParse
 """
 One-leg XXZ ladder Hamiltonian with periodic boundary conditions along the leg and rung phonon coupling.
 Hamiltonian written in the S+, S-, Sz basis.
+On the boson leg we use hard core bosons, which are equivalent to spin-1/2 operators.
 """
 function XXZ_ladder(J::Float64, L::Int, Δ::Float64, ω_0::Float64, g::Float64, J_prime::Float64)
   H = ps.Operator(L * 2)
-
   for l in 1:L
     lp = mod1(l + 1, L)
 
@@ -28,7 +28,7 @@ function XXZ_ladder(J::Float64, L::Int, Δ::Float64, ω_0::Float64, g::Float64, 
     H += (J_prime / 2) * ps.string_2d(("S-", l, 2, "S+", lp, 2), L, 2)
     #H += (J_prime * Δ) * ps.string_2d(("Sz", l, 2, "Sz", lp, 2), L, 2)
   end
-  
+
   return ps.OperatorTS{(L, 2), (true, false)}(H) / L
 end
 
@@ -45,10 +45,7 @@ Hilbert-Schmidt norm.
 @inline hs_norm(op::ps.OperatorTS) = sqrt(real(hs_product(op, op)))
 
 """
-0 = identity
-1 = S+
-2 = Sz
-3 = S-
+0 = identity ; 1 = S+ ; 2 = Sz ; 3 = S-
 """
 @inline hc(o::Int) = (o == 1 ? 3 : (o == 3 ? 1 : o))
 
@@ -57,11 +54,13 @@ undigit(olist::Vector{Int}) -> Int
 Convert a base-4 digit list to its integer representation.
 """
 @inline undigit(olist) = sum([olist[i] * 4^(i - 1) for i in eachindex(olist)])
-
 symbol_map = Dict(0 => "1", 1 => "S+", 2 => "Sz", 3 => "S-")
 superscript_map = Dict("S+" => "P", "Sz" => "Z", "S-" => "M", "1" => "1")
 @inline hc(o::String) = (o == "P" ? "M" : (o == "M" ? "P" : o))
 
+"""
+["1", "3", "0"] → "130"
+"""
 function digits_string(op_list::Vector{Int})
   return join(string.(op_list), "")
 end
@@ -69,6 +68,12 @@ end
 """
 is_odd_under_parity(op_list, time_reversal) -> Bool
 Determine if an operator list is odd under parity assuming given time-reversal symmetry.
+T sector       Sᶻ       (-1)^cnt_z   P sector
+------------------------------------------------
+:even      parzysta         +1       :even
+:even      nieparzysta      -1       :odd
+:odd       parzysta         +1       :odd
+:odd       nieparzysta      -1       :even
 """
 function is_odd_under_parity(op_list::Vector{Int}, time_reversal::Symbol)
   cnt_z = count(x -> x == 2, op_list)
@@ -80,13 +85,8 @@ function is_odd_under_parity(op_list::Vector{Int}, time_reversal::Symbol)
 end
 
 """
-is_even_under_parity(op_list, time_reversal) -> Bool
 Determine if an operator list is even under parity assuming given time-reversal symmetry.
 """
-function is_even_under_parity(op_list::Vector{Int}, time_reversal::Symbol)
-  return !is_odd_under_parity(op_list, time_reversal)
-end
-
 function parity_sector(op_list::Vector{Int}, time_reversal::Symbol)
   if is_odd_under_parity(op_list, time_reversal)
     return :odd
