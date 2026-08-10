@@ -293,33 +293,33 @@ function lanczos(A, q0, q1, beta1)
     alpha = zeros(Float64, n)
 
     for j in 1:n
-        println("\n==============================")
-        println("ITERACJA: ", j)
-        println("==============================")
-        #println("q_$(j - 1) = ")
-        #display(q_previous)
-        #println("q_$j = ")
-        #display(q)
-        println("beta_$j = ", beta[j])
+        # println("\n==============================")
+        # println("ITERACJA: ", j)
+        # println("==============================")
+        # println("q_$(j - 1) = ")
+        # display(q_previous)
+        # println("q_$j = ")
+        # display(q)
+        # println("beta_$j = ", beta[j])
         # αⱼ = qⱼᵀ A qⱼ
         alpha[j] = real(dot(q, A * q))
-        println("alpha_$j = ", alpha[j])
+        # println("alpha_$j = ", alpha[j])
         # wⱼ₊₁ = A qⱼ - βⱼ qⱼ₋₁ - αⱼ qⱼ
         w = A * q - beta[j] * q_previous - alpha[j] * q
-        #println("w_$(j + 1) = ")
-        #display(w)
+        # println("w_$(j + 1) = ")
+        # display(w)
         if j < n 
             # βⱼ₊₁ = ||wⱼ₊₁||
             beta[j + 1] = norm(w)
-            println("beta_$(j + 1) = ", beta[j + 1])
+            # println("beta_$(j + 1) = ", beta[j + 1])
             if beta[j + 1] < 1e-14 # jesil beta robi się zamałe algorytm się zatrzymuje 
                 T = SymTridiagonal(alpha[1:j], beta[2:j])
                 return T
             end
             # qⱼ₊₁ = wⱼ₊₁ / βⱼ₊₁
             q_next = w / beta[j + 1]
-            #println("q_$(j + 1) = ")
-            #display(q_next)
+            # println("q_$(j + 1) = ")
+            # display(q_next)
             # Zapisujemy qⱼ₊₁ w macierzy Q
             Q[:, j + 1] = q_next
             # Przygotowujemy następną iterację
@@ -363,8 +363,8 @@ function main()
     # q1 = ComplexF64[0.0, 0.0, 0.0, 1.0, 0.0, 0.0]
     beta_1 = 0.0
 
-    println("Wylosowany q1:")
-    display(q1)
+    # println("Wylosowany q1:")
+    # display(q1)
 
     T = lanczos(H, q0, q1, beta_1)
     println("Macierz T:")
