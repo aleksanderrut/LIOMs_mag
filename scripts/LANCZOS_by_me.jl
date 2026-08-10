@@ -273,11 +273,12 @@ function losuj_q1(n::Int)
 end
 
 """
-The Lanczos Algorithm 
+The Lanczos Algorithm
 """
 function lanczos(A, q0, q1, beta1)
     # Tworzymy macierz T tej samej wielkości co A
-    n = size(A, 1) 
+    n = size(A, 1)
+    max_iter = min(n, 1000)
     # Normalizujemy wektor początkowy q₁
     q = ComplexF64.(q1)
     q = q / norm(q)
@@ -291,8 +292,9 @@ function lanczos(A, q0, q1, beta1)
     Q[:, 1] = q
     # Współczynniki macierzy trójdiagonalnej - T
     alpha = zeros(Float64, n)
+    energie = zeros(Float64, max_iter, 2)
 
-    for j in 1:n
+    for j in 1:max_iter
         # println("\n==============================")
         # println("ITERACJA: ", j)
         # println("==============================")
@@ -304,17 +306,20 @@ function lanczos(A, q0, q1, beta1)
         # αⱼ = qⱼᵀ A qⱼ
         alpha[j] = real(dot(q, A * q))
         # println("alpha_$j = ", alpha[j])
+        T_j = SymTridiagonal(alpha[1:j], beta[2:j])
+        energie[j, 1] = j
+        energie[j, 2] = eigmin(T_j)
         # wⱼ₊₁ = A qⱼ - βⱼ qⱼ₋₁ - αⱼ qⱼ
         w = A * q - beta[j] * q_previous - alpha[j] * q
         # println("w_$(j + 1) = ")
         # display(w)
-        if j < n 
+        if j < max_iter 
             # βⱼ₊₁ = ||wⱼ₊₁||
             beta[j + 1] = norm(w)
             # println("beta_$(j + 1) = ", beta[j + 1])
             if beta[j + 1] < 1e-14 # jesil beta robi się zamałe algorytm się zatrzymuje 
                 T = SymTridiagonal(alpha[1:j], beta[2:j])
-                return T
+                return T, Q[:, 1:j], energie[1:j, :]
             end
             # qⱼ₊₁ = wⱼ₊₁ / βⱼ₊₁
             q_next = w / beta[j + 1]
@@ -328,8 +333,36 @@ function lanczos(A, q0, q1, beta1)
         end
     end
     # Budujemy macierz trójdiagonalną
-    T = SymTridiagonal(alpha, beta[2:n])
-    return T
+    T = SymTridiagonal(alpha[1:max_iter], beta[2:max_iter])
+    return T, Q[:, 1:max_iter], energie
+end
+
+"""
+The Lanczos Algorithm for time evolution
+"""
+function dynamika_lanczos(H, psi0, delta_t, liczba_krokow)
+    n = size(H, 1)
+    psi = ComplexF64.(psi0)
+    stany = zeros(ComplexF64, n, liczba_krokow)
+
+    for krok in 1:liczba_krokow
+        q0 = zeros(ComplexF64, n)
+        beta_1 = 0.0
+        T, Q, energie = lanczos(H, q0, psi, beta_1)
+        # Diagonalizacja macierzy T: T = V D V†
+        wynik_T = eigen(T)
+        D = Diagonal(wynik_T.values)
+        V = wynik_T.vectors
+        # Stan początkowy zapisany w bazie Kryłowa
+        e1 = zeros(ComplexF64, size(T, 1))
+        e1[1] = 1.0
+        # Ewolucja o jeden krok czasowy
+        psi = Q * V * exp(-im * D * delta_t) * adjoint(V) * e1
+
+        stany[:, krok] = psi
+    end
+
+    return stany
 end
 
 function main()
@@ -342,40 +375,53 @@ function main()
     pbc = pbc_argument == "yes"
 
     baza_bin, baza_int, indeks_odwrotny = gen_baza_xxz(M, N_up)
-    println("Wygenerowano bazę modelu XXZ.")
+    # println("Wygenerowano bazę modelu XXZ.")
+    # zapisz_baze_do_plikow(M, N_up, baza_bin, baza_int, indeks_odwrotny)
+    # println("Zapisano do plików bazę modelu XXZ.")
 
-    zapisz_baze_do_plikow(M, N_up, baza_bin, baza_int, indeks_odwrotny)
-    println("Zapisano do plików bazę modelu XXZ.")
-
-    H = gen_ham_xxz(M, J, Delta, pbc, baza_bin, indeks_odwrotny)    
-    save_ham(H, M, N_up, J, Delta, pbc_argument)
-    println("Hamiltonian zapisano do pliku.")
+    H = gen_ham_xxz(M, J, Delta, pbc, baza_bin, indeks_odwrotny)
+    # println("Stworzono Hamiltonian modelu XXZ.")    
+    # save_ham(H, M, N_up, J, Delta, pbc_argument)
+    # println("Hamiltonian zapisano do pliku.")
 
     # ED
-    wynik = eigen(Matrix(H))
-    wartosci_wlasne = wynik.values
-    # wektory_wlasne = wynik.vectors
-    save_eigenvalues(wartosci_wlasne, "wartosci_wlasne_ED", M, N_up, J, Delta, pbc_argument)
-    println("Wartości własne zapisano do pliku.")
+    # wynik = eigen(Matrix(H))
+    # wartosci_wlasne = wynik.values
+    # # wektory_wlasne = wynik.vectors
+    # save_eigenvalues(wartosci_wlasne, "wartosci_wlasne_ED", M, N_up, J, Delta, pbc_argument)
+    # println("Wartości własne zapisano do pliku.")
 
-    q0 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-    q1 = losuj_q1(size(H, 1))
+    # Lanczos
+    # q0 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    q0 = zeros(size(H, 1))
     # q1 = ComplexF64[0.0, 0.0, 0.0, 1.0, 0.0, 0.0]
+    q1 = losuj_q1(size(H, 1))
     beta_1 = 0.0
-
     # println("Wylosowany q1:")
     # display(q1)
-
-    T = lanczos(H, q0, q1, beta_1)
-    println("Macierz T:")
-    display(Matrix(T))
-
+    T, Q, energie = lanczos(H, q0, q1, beta_1)
+    # println("Macierz T:")
+    # display(Matrix(T))
     wynik_LAN = eigen(Matrix(T))
     wartosci_wlasne_LAN = wynik_LAN.values
     # wektory_wlasne = wynik.vectors
     save_eigenvalues(wartosci_wlasne_LAN, "wartosci_wlasne_LAN", M, N_up, J, Delta, pbc_argument)
     println("Wartości własne zapisano do pliku.")
 
+    # Porównanie wyników z ED i Lanczosa
+    E_ED = eigmin(Matrix(H))
+    roznice_energii = zeros(Float64, size(energie, 1), 2)
+    for j in axes(energie, 1)
+        roznice_energii[j, 1] = energie[j, 1]
+        roznice_energii[j, 2] = abs(energie[j, 2] - E_ED)
+    end
+    output_directory = joinpath(@__DIR__, "Lanczos_XXZ_wyniki")
+    plik_roznice_energii = joinpath(output_directory, "roznica_energii_XXZ_M_$(M)_Nup_$(N_up)_J_$(J)_Delta_$(Delta)_PBC_$(pbc_argument).txt")
+    open(plik_roznice_energii, "w") do io
+        for j in axes(roznice_energii, 1)
+            println(io, roznice_energii[j, 1], " ", roznice_energii[j, 2])
+        end
+    end
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
