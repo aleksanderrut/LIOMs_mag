@@ -273,6 +273,15 @@ function losuj_q1(n::Int)
 end
 
 """
+Generating a random normalized vector with Gaussian distribution
+"""
+function losuj_q1_gauss(n::Int)
+    q1 = randn(n) .+ im .* randn(n)
+    q1 = q1 / norm(q1)
+    return q1
+end
+
+"""
 The Lanczos Algorithm
 """
 function lanczos(A, q0, q1, beta1)
@@ -344,7 +353,6 @@ function dynamika_lanczos(H, psi0, delta_t, liczba_krokow)
     n = size(H, 1)
     psi = ComplexF64.(psi0)
     stany = zeros(ComplexF64, n, liczba_krokow)
-
     for krok in 1:liczba_krokow
         q0 = zeros(ComplexF64, n)
         beta_1 = 0.0
@@ -358,10 +366,27 @@ function dynamika_lanczos(H, psi0, delta_t, liczba_krokow)
         e1[1] = 1.0
         # Ewolucja o jeden krok czasowy
         psi = Q * V * exp(-im * D * delta_t) * adjoint(V) * e1
-
         stany[:, krok] = psi
     end
 
+    return stany
+end
+
+"""
+The Exact Diagonalization Algorithm for time evolution
+"""
+function dynamika_ED(H, psi0, delta_t, liczba_krokow)
+    n = size(H, 1)
+    psi0 = ComplexF64.(psi0)
+    stany = zeros(ComplexF64, n, liczba_krokow)
+    # Diagonalizacja Hamiltonianu H = VDV†
+    wynik_H = eigen(Matrix(H))
+    D = Diagonal(wynik_H.values)
+    V = wynik_H.vectors
+    for krok in 1:liczba_krokow
+        psi = V * exp(-im * D * krok * delta_t) * adjoint(V) * psi0
+        stany[:, krok] = psi
+    end
     return stany
 end
 
@@ -387,7 +412,7 @@ function main()
     # ED
     # wynik = eigen(Matrix(H))
     # wartosci_wlasne = wynik.values
-    # # wektory_wlasne = wynik.vectors
+    # wektory_wlasne = wynik.vectors
     # save_eigenvalues(wartosci_wlasne, "wartosci_wlasne_ED", M, N_up, J, Delta, pbc_argument)
     # println("Wartości własne zapisano do pliku.")
 
@@ -397,16 +422,16 @@ function main()
     # q1 = ComplexF64[0.0, 0.0, 0.0, 1.0, 0.0, 0.0]
     q1 = losuj_q1(size(H, 1))
     beta_1 = 0.0
-    # println("Wylosowany q1:")
-    # display(q1)
+    # # println("Wylosowany q1:")
+    # # display(q1)
     T, Q, energie = lanczos(H, q0, q1, beta_1)
-    # println("Macierz T:")
-    # display(Matrix(T))
-    wynik_LAN = eigen(Matrix(T))
-    wartosci_wlasne_LAN = wynik_LAN.values
-    # wektory_wlasne = wynik.vectors
-    save_eigenvalues(wartosci_wlasne_LAN, "wartosci_wlasne_LAN", M, N_up, J, Delta, pbc_argument)
-    println("Wartości własne zapisano do pliku.")
+    # # println("Macierz T:")
+    # # display(Matrix(T))
+    # wynik_LAN = eigen(Matrix(T))
+    # wartosci_wlasne_LAN = wynik_LAN.values
+    # # wektory_wlasne = wynik.vectors
+    # save_eigenvalues(wartosci_wlasne_LAN, "wartosci_wlasne_LAN", M, N_up, J, Delta, pbc_argument)
+    # println("Wartości własne zapisano do pliku.")
 
     # Porównanie wyników z ED i Lanczosa
     E_ED = eigmin(Matrix(H))
@@ -422,6 +447,37 @@ function main()
             println(io, roznice_energii[j, 1], " ", roznice_energii[j, 2])
         end
     end
+
+    # dynamika za pomocą algorytmu Lanczosa
+    psi0 = losuj_q1_gauss(size(H, 1))
+    delta_t = 0.01
+    liczba_krokow = 100
+    # główna funkcja do obliczania ewolucji czasowej za pomocą algorytmu Lanczosa
+    stany = dynamika_lanczos(H, psi0, delta_t, liczba_krokow)
+    # zapisanie wyników ewolucji do pliku
+    output_directory = joinpath(@__DIR__, "Lanczos_XXZ_wyniki")
+    plik_dynamika = joinpath(output_directory, "dynamika_LAN_XXZ_M_$(M)_Nup_$(N_up)_J_$(J)_Delta_$(Delta)_PBC_$(pbc_argument)_dt_$(delta_t)_kroki_$(liczba_krokow).txt")
+    open(plik_dynamika, "w") do io
+        for i in axes(stany, 1)
+            println(io, join(stany[i, :], " "))
+        end
+    end
+
+    # dynamika za pomocą diagonalizacji
+    # psi0 = losuj_q1_gauss(size(H, 1))
+    # delta_t = 0.01
+    # liczba_krokow = 100
+    stany_ED = dynamika_ED(H, psi0, delta_t, liczba_krokow)
+    # zapisanie wyników ewolucji do pliku
+    output_directory = joinpath(@__DIR__, "Lanczos_XXZ_wyniki")
+    plik_dynamika_ED = joinpath(output_directory, "dynamika_ED_XXZ_M_$(M)_Nup_$(N_up)_J_$(J)_Delta_$(Delta)_PBC_$(pbc_argument)_dt_$(delta_t)_kroki_$(liczba_krokow).txt")
+    open(plik_dynamika_ED, "w") do io
+        for i in axes(stany_ED, 1)
+            println(io, join(stany_ED[i, :], " "))
+        end
+    end
+    
+
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
