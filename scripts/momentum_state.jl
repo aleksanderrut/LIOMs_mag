@@ -248,6 +248,24 @@ function save_eigenvalues(wartosci_wlasne::AbstractVector, nazwa_tablicy::String
 end
 
 """
+Zapisuje wszystkie wartości własne ze wszystkich sektorów momentum. Pierwsza kolumna: k_fiz, druga kolumna: wartość własna
+"""
+function save_all_eigenvalues(wszystkie_wartosci_wlasne::Vector{Tuple{Float64,Float64}},M::Int, N_up::Int, J::Real, Delta::Real)
+    output_directory = raw"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\momnetu_state"
+    mkpath(output_directory)
+    plik_wartosci_wlasne = joinpath(output_directory, "wartosci_wlasne_wszystkie_k_XXZ_M_$(M)_Nup_$(N_up)_J_$(J)_Delta_$(Delta).txt")
+    open(plik_wartosci_wlasne, "w") do io
+        for (k_fiz, wartosc) in wszystkie_wartosci_wlasne
+            println(io, k_fiz, '\t', wartosc)
+        end
+    end
+    println()
+    println("Wszystkie wartości własne zostały zapisane do pliku:")
+    println(plik_wartosci_wlasne)
+    return nothing
+end
+
+"""
 Przyjmuje parametry z terminala
 """
 function parse_args()
@@ -305,57 +323,42 @@ function main()
         lista_k = [k]
     end
 
+    wszystkie_wartosci_wlasne = Vector{Tuple{Float64,Float64}}()
     for k in lista_k
-
-        println()
+        czas_k = @elapsed begin
         println("===================================")
         println("Liczenie sektora k = ", k)
         println("===================================")
 
-        # Generowanie bazy
-        baza = gen_trans_baza_sandvik(M, N_up, k)
-
+        baza = gen_trans_baza_sandvik(M, N_up, k) # Generowanie bayzy
         println("Liczba stanów w bazie: ", length(baza))
 
-        # Zapis bazy
-        nazwa_pliku_baza = joinpath(
-            folder_wyniki,
-            "baza_trans_sandvik_M_$(M)_N_$(N_up)_k_$(k).txt"
-        )
+        # nazwa_pliku_baza = joinpath(folder_wyniki, "baza_trans_sandvik_M_$(M)_N_$(N_up)_k_$(k).txt") # Zapis bazy
+        # open(nazwa_pliku_baza, "w") do plik
+        #     for element_bazy in baza
+        #         println(plik, join(element_bazy, " "))
+        #     end
+        # end
+        # println("Baza została zapisana do pliku:")
+        # println(nazwa_pliku_baza)
 
-        open(nazwa_pliku_baza, "w") do plik
-            for element_bazy in baza
-                println(plik, join(element_bazy, " "))
-            end
-        end
+        H = gen_ham_XXZ_ms(M, J, Delta, k, baza) # Generowanie Hamiltonianu
+        # save_ham(H, M, N_up, J, Delta, k) # Zapis Hamiltonianu
 
-        println("Baza została zapisana do pliku:")
-        println(nazwa_pliku_baza)
-
-        # Generowanie Hamiltonianu
-        H = gen_ham_XXZ_ms(M, J, Delta, k, baza)
-
-        # Zapis Hamiltonianu
-        save_ham(H, M, N_up, J, Delta, k)
-
-        # Diagonalizacja
-        eigen_result = eigen(Matrix(H))
+        eigen_result = eigen(Hermitian(Matrix(H))) # Diagonalizacja, z powiedzeniem funkcji że jest hermitowska
         wartosci_wlasne = eigen_result.values
+        # save_eigenvalues(wartosci_wlasne, "wartosci_wlasne", M, N_up, J, Delta, k) # Zapis wartości własnych
 
-        # Zapis wartości własnych
-        save_eigenvalues(
-            wartosci_wlasne,
-            "wartosci_wlasne",
-            M,
-            N_up,
-            J,
-            Delta,
-            k
-        )
+        k_fiz = 2π * k / M # fizyczna wartość pędu
+        for wartosc in wartosci_wlasne
+            push!(wszystkie_wartosci_wlasne, (k_fiz, wartosc))
+        end
     end
+    println("Czas liczenia dla k = $(k): $(czas_k) s")
+    end  # @elapsed begin
+
+    save_all_eigenvalues(wszystkie_wartosci_wlasne, M, N_up, J, Delta)
 end
-
-
 
 if abspath(PROGRAM_FILE) == @__FILE__
     main()
