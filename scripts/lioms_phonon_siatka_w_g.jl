@@ -45,10 +45,7 @@ Hilbert-Schmidt norm.
 @inline hs_norm(op::ps.OperatorTS) = sqrt(real(hs_product(op, op)))
 
 """
-0 = identity
-1 = S+
-2 = Sz
-3 = S-
+0 = identity ; 1 = S+ ; 2 = Sz ; 3 = S-
 """
 @inline hc(o::Int) = (o == 1 ? 3 : (o == 3 ? 1 : o))
 
@@ -57,11 +54,9 @@ undigit(olist::Vector{Int}) -> Int
 Convert a base-4 digit list to its integer representation.
 """
 @inline undigit(olist) = sum([olist[i] * 4^(i - 1) for i in eachindex(olist)])
-
 symbol_map = Dict(0 => "1", 1 => "S+", 2 => "Sz", 3 => "S-")
 superscript_map = Dict("S+" => "P", "Sz" => "Z", "S-" => "M", "1" => "1")
 @inline hc(o::String) = (o == "P" ? "M" : (o == "M" ? "P" : o))
-
 function digits_string(op_list::Vector{Int})
   return join(string.(op_list), "")
 end
@@ -120,21 +115,18 @@ The support starts at l = 1. Translation along legs is handled by OperatorTS.
 function string_2d_from_legs(upper_list::Vector{Int}, lower_list::Vector{Int}, L::Int; coeff = 1 + 0im)
   args = Any[]
   M = length(upper_list)
-
   for x in 1:M
     op = upper_list[x]
     if op != 0
       push!(args, symbol_map[op], x, 1)
     end
   end
-
   for x in 1:M
     op = lower_list[x]
     if op != 0
       push!(args, symbol_map[op], x, 2)
     end
   end
-
   return coeff * ps.string_2d(Tuple(args), L, 2)
 end
 
@@ -220,13 +212,9 @@ function all_M_ladder_leg_sym(L::Int, M::Int, time_reversal::Symbol, parity::Sym
     for lower in lower_legs
       lower_list, lower_T, lower_P, lower_Sz = lower
 
-      #wyrzucenie 000|000
-      all(upper_list .== 0) && all(lower_list .== 0) && continue
-
-      #opcjonalne wyrzucenie operatorów działających wyłącznie na nodze bozonowej: identity_F ⊗ O_B
-      !include_fermion_identity && all(upper_list .== 0) && continue
-
-      upper_list[1] == 0 && lower_list[1] == 0 && continue
+      all(upper_list .== 0) && all(lower_list .== 0) && continue #wyrzucenie 000|000
+      !include_fermion_identity && all(upper_list .== 0) && continue #opcjonalne wyrzucenie operatorów działających wyłącznie na nodze bozonowej: identity_F ⊗ O_B
+      upper_list[1] == 0 && lower_list[1] == 0 && continue #wyrzucenie 0...|0...
 
       #policzenie współych smetrii opertora już na dwóch nogach
       total_T = compose_sector(upper_T, lower_T)
@@ -251,7 +239,6 @@ function all_M_ladder_leg_sym(L::Int, M::Int, time_reversal::Symbol, parity::Sym
       push!(ops_list_rows, "\t" * sector_char(upper_T) * sector_char(lower_T) * "\t" * digits_string(upper_list) * "|" * digits_string(lower_list))
     end
   end
-
   return ops, ops_list, ops_list_rows
 end
 
@@ -260,44 +247,26 @@ function prepare_operator_basis(L::Int, max_supp::Int, time_reversal::Symbol, pa
   ops, ops_list, ops_list_rows = all_M_ladder_leg_sym(L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson, include_fermion_identity)
   println("Generated $(length(ops)) operators")
   println("Computing norms...")
-
-  if length(ops) == 0
-    error("Empty operator basis after symmetry filtering.")
-  end
-
   norms = hs_norm.(ops)
   good = findall(x -> abs(x) > 1e-12, norms)
   ops = ops[good]
   ops_list = ops_list[good]
   ops_list_rows = ops_list_rows[good]
   norms = norms[good]
-
-  if length(ops) == 0
-    error("Empty operator basis after norm filtering.")
-  end
-
   ops ./= norms
-
   return ops, ops_list, ops_list_rows
 end
 
 """
-Compute eigenvalues and eigenvectors using an already prepared
-and normalized operator basis.
+Compute eigenvalues and eigenvectors using an already prepared and normalized operator basis.
 """
-function compute_eigensystem_from_prepared_basis(
-  H::ps.OperatorTS,
-  ops::Vector{ps.OperatorTS}
-)
+function compute_eigensystem_from_prepared_basis(H::ps.OperatorTS, ops::Vector{ps.OperatorTS})
   comms = Vector{ps.OperatorTS}(undef, length(ops))
-
   # Bez println i bez osobnego paska postępu
   for i in eachindex(ops)
     comms[i] = im * ps.com(H, ops[i])
   end
-
   corr_mat = zeros(Float64, length(ops), length(ops))
-
   # Obliczanie macierzy pozostaje wielowątkowe
   @threads :greedy for i in eachindex(ops)
     comm_i = comms[i]
@@ -314,50 +283,30 @@ function compute_eigensystem_from_prepared_basis(
       )
     end
   end
-
   F = eigen(Symmetric(corr_mat))
-
   return F.values, F.vectors
 end
 
 """
 Save one selected eigenvector for one omega/g point.
-Output format:
-omega_0    g    basis_index:squared_coefficient;basis_index:squared_coefficient;...
+Output format: omega_0    g    basis_index:squared_coefficient;basis_index:squared_coefficient;...
 """
 function save_grid_liom_row(io, omega_0::Real, g::Real, eigenvector::AbstractVector; coeff_sq_tol::Float64 = 1e-6)
   squared_coeffs = abs2.(eigenvector)
-  # Pierwsza i druga kolumna: omega_0 oraz g
-  @printf(
-    io,
-    "%.16e\t%.16e\t",
-    omega_0,
-    g
-  )
+  sorted_indices = sortperm(squared_coeffs, rev = true) # Indeksy elementów bazy posortowane według malejącego współczynnika
 
+  @printf(io, "%.16e\t%.16e\t", omega_0, g)
   first_saved = true
-
-  # Naturalna kolejność elementów bazy: 1, 2, 3, ...
-  for i in eachindex(squared_coeffs)
+  for i in sorted_indices
     squared_coeff = squared_coeffs[i]
-
-    # Zapisujemy tylko kwadraty współczynników > 10^-15
     if squared_coeff > coeff_sq_tol
       if !first_saved
         print(io, ";")
       end
-
-      @printf(
-        io,
-        "%d:%.16e",
-        i,
-        squared_coeff
-      )
-
+      @printf(io, "%d:%.16e", i,squared_coeff)
       first_saved = false
     end
   end
-
   println(io)
 end
 
@@ -421,155 +370,81 @@ function save_operator_labels(filename, ops_list)
   end
 end
 
-function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol, include_fermion_identity::Bool, grid_omega::Int, grid_g::Int, eig_index::Int, omega_min::Float64, omega_max::Float64, g_min::Float64, g_max::Float64)
+function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol, include_fermion_identity::Bool,
+    grid_omega::Int, grid_g::Int, eig_first::Int, eig_last::Int, omega_min::Float64, omega_max::Float64, g_min::Float64, g_max::Float64)
+
   println("Running omega/g grid scan mode.")
   println("omega grid size = ", grid_omega)
   println("g grid size = ", grid_g)
-  println("Eigenvalue/eigenvector index saved = ", eig_index)
+  println("Eigenvalues/eigenvectors saved = ", eig_first, ":", eig_last)
   println("omega range = [", omega_min, ", ", omega_max, "]")
   println("g range = [", g_min, ", ", g_max, "]")
   println("Squared coefficient tolerance = 1e-15")
-  println("Include fermionic identity-only leg? = ", include_fermion_identity)
 
   # Baza jest przygotowywana tylko raz dla całej siatki
   ops, _, _ = prepare_operator_basis(L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson, include_fermion_identity)
 
-  if eig_index < 1 || eig_index > length(ops)
-    error(
-      "Requested eig-index = $eig_index, " *
-      "but the allowed range is 1:$(length(ops))."
-    )
-  end
+  omega_values = collect(range(omega_min, omega_max; length = grid_omega))
+  g_values = collect(range(g_min, g_max; length = grid_g))
 
-  omega_values = collect(
-    range(
-      omega_min,
-      omega_max;
-      length = grid_omega
-    )
-  )
-
-  g_values = collect(
-    range(
-      g_min,
-      g_max;
-      length = grid_g
-    )
-  )
-
-  base_path = joinpath(
-    @__DIR__,
-    "liom_mag_dane"
-  )
-
-  # Dotychczasowy folder z wartościami własnymi
-  grid_path = joinpath(
-    base_path,
-    "siatka_omega_g"
-  )
-
-  # Nowy folder ze współczynnikami wybranego LIOM-u/modu
-  lioms_grid_path = joinpath(
-    base_path,
-    "siatka_omega_g_liomsy"
-  )
+  base_path = joinpath(@__DIR__, "liom_mag_dane")
+  grid_path = joinpath(base_path,"siatka_omega_g")
+  lioms_grid_path = joinpath(base_path,"siatka_omega_g_liomsy")
 
   mkpath(grid_path)
   mkpath(lioms_grid_path)
-
-fid_tag = include_fermion_identity ? "yes" : "no"
-
-file_tag =
-  "M$(max_supp)" *
-  "_Jp$(J_prime)" *
-  "_d$(Delta)" *
-  "_T$(time_reversal)" *
-  "_P$(parity)" *
-  "_F$(conserve_Sz_fermion)" *
-  "_B$(conserve_Sz_boson)" *
-  "_FId$(fid_tag)" *
-  "_eig$(eig_index)"
-
-  filename_grid = joinpath(
-  grid_path,
-  "grid_" * file_tag * ".txt"
-  )
-
-  filename_lioms_grid = joinpath(
-  lioms_grid_path,
-  "lioms_grid_" * file_tag * ".txt"
-  )
-
-  total_points = grid_omega * grid_g
-
-  p = Progress(
-    total_points;
-    desc = "Computing omega/g grid...",
-    showspeed = true
-  )
-
-  open(filename_grid, "w") do io_evals
-    open(filename_lioms_grid, "w") do io_lioms
-
-      for omega_0 in omega_values
-        for g in g_values
-          H = XXZ_ladder(
-            J,
-            L,
-            Delta,
-            omega_0,
-            g,
-            J_prime
-          )
-
-          # Jedna diagonalizacja dla danego punktu
-          evals, evecs =
-            compute_eigensystem_from_prepared_basis(
-              H,
-              ops
-            )
-
-          lambda = evals[eig_index]
-
-          # Dotychczasowy plik z wartością własną
-          @printf(
-            io_evals,
-            "%.16e\t%.16e\t%.16e\n",
-            omega_0,
-            g,
-            lambda
-          )
-
-          # Wybrany wektor własny tylko chwilowo w pamięci
-          selected_eigenvector = view(
-            evecs,
-            :,
-            eig_index
-          )
-
-          # Nowy plik z kwadratami współczynników
-          save_grid_liom_row(
-            io_lioms,
-            omega_0,
-            g,
-            selected_eigenvector;
-            coeff_sq_tol = 1e-15
-          )
-
-          next!(p)
-        end
-      end
-
-    end
+  fid_tag = include_fermion_identity ? "yes" : "no"
+  base_file_tag = "M$(max_supp)" * "_Jp$(J_prime)" * "_d$(Delta)" * "_T$(time_reversal)" * "_P$(parity)" * "_F$(conserve_Sz_fermion)" * "_B$(conserve_Sz_boson)" * "_FId$(fid_tag)"
+  # Nazwy plików dla kolejnych eig
+  filename_grids = String[]
+  filename_lioms_grids = String[]
+  for eig_index in eig_first:eig_last
+    file_tag = base_file_tag * "_eig$(eig_index)"
+    push!(filename_grids, joinpath(grid_path, "grid_" * file_tag * ".txt"))
+    push!(filename_lioms_grids, joinpath(lioms_grid_path, "lioms_grid_" * file_tag * ".txt"))
   end
 
+  io_evals = [open(filename, "w") for filename in filename_grids]   # Otwieramy pliki dla wszystkich eig
+  io_lioms = [open(filename, "w") for filename in filename_lioms_grids]
+
+  total_points = grid_omega * grid_g
+  p = Progress(total_points; desc = "Computing omega/g grid...", showspeed = true)
+
+  for omega_0 in omega_values
+    for g in g_values
+      H = XXZ_ladder(J, L, Delta, omega_0, g, J_prime)
+      # Jedna diagonalizacja dla danego punktu
+      evals, evecs =compute_eigensystem_from_prepared_basis(H, ops)
+
+      # Zapis wszystkich wybranych wartości i wektorów własnych
+      for eig_index in eig_first:eig_last
+        file_index = eig_index - eig_first + 1
+        lambda = evals[eig_index]
+        @printf(io_evals[file_index], "%.16e\t%.16e\t%.16e\n", omega_0, g, lambda)
+
+        selected_eigenvector = view(evecs,:,eig_index) # wybiera jeden wektor włąasny ten odbowaidajacy eig_index
+        save_grid_liom_row(io_lioms[file_index], omega_0, g, selected_eigenvector; coeff_sq_tol = 1e-15)
+      end
+      next!(p)
+    end
+  end
   finish!(p)
+  # Zamknięcie plików
+  for io in io_evals
+    close(io)
+  end
+  for io in io_lioms
+    close(io)
+  end
 
-  println("Eigenvalue grid saved to:")
-  println(filename_grid)
-
-  println("LIOM coefficient grid saved to:")
-  println(filename_lioms_grid)
+  println("Eigenvalue grids saved to:")
+  for filename in filename_grids
+    println(filename)
+  end
+  println("LIOM coefficient grids saved to:")
+  for filename in filename_lioms_grids
+    println(filename)
+  end
 end
 
 function parse_args()
@@ -623,8 +498,12 @@ function parse_args()
     help = "Number of grid points in g direction. If > 1, grid scan mode is used."
     arg_type = Int
     default = 1
-    "--eig-index"
-    help = "Which eigenvalue to save: 1 for the smallest, 2 for the second smallest, etc."
+    "--eig-first"
+    help = "First eigenvalue/eigenvector index to save"
+    arg_type = Int
+    default = 1
+    "--eig-last"
+    help = "Last eigenvalue/eigenvector index to save"
     arg_type = Int
     default = 1
     "--omega-min"
@@ -649,7 +528,6 @@ end
 
 function main()
   args = parse_args()
-
   allowed_time_rev = ["even", "odd", "both"]
   !(args["time-reversal"] in allowed_time_rev) && error("Invalid --type: $(args["time-reversal"]). Must be one of $(allowed_time_rev)")
   allowed_parity = ["even", "odd", "both"]
@@ -678,7 +556,8 @@ function main()
   L = 2 * max_supp + 2
   grid_omega = args["grid-omega"]
   grid_g = args["grid-g"]
-  eig_index = args["eig-index"]
+  eig_first = args["eig-first"]
+  eig_last = args["eig-last"]
   omega_min = args["omega-min"]
   omega_max = args["omega-max"]
   g_min = args["g-min"]
@@ -699,10 +578,12 @@ function main()
   println("Include fermionic identity-only leg? = ", include_fermion_identity)
 
   if grid_omega > 1 || grid_g > 1
-    run_grid_scan(J, J_prime, L, Delta, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson, include_fermion_identity, grid_omega, grid_g, eig_index, omega_min, omega_max, g_min, g_max)
+    run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol, include_fermion_identity::Bool,
+      grid_omega::Int, grid_g::Int, eig_first::Int, eig_last::Int, omega_min::Float64, omega_max::Float64, g_min::Float64, g_max::Float64)
     return
   end
-
+  
+  #To ponirzej wykona się tylko NIE w trubie siatki czyli dla omega_grid = 1 i g_grid = 1 
   H = XXZ_ladder(J, L, Delta, omega_0, g, J_prime)
   println("Hamiltonian:")
   println(H)
