@@ -58,7 +58,7 @@ for FID in no yes; do
         --include-fermion-identity "$FID" \
         --J-prime "$J_PRIME" \
         --grid-omega 1 \
-        --grid-g 501 \
+        --grid-g 101 \
         --eig-first 1 \
         --eig-last 10 \
         --omega-min 0.5 \

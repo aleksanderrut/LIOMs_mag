@@ -106,12 +106,13 @@ function zapisz_baze_do_plikow(M::Int, N_up::Int, baza_bin::Vector{String}, baza
 end
 
 """
-Zwraca: H - rzadka macierz Hamiltonianu
+Zwraca: H - rzadka macierz Hamiltonianu, i operatory (A_1 i J_1)
 """
 function gen_ham_xxz(M::Int, J::Real, Delta::Real, pbc::Bool, baza_bin::Vector{String}, indeks_odwrotny::Vector{Int})
     ile_stanow = length(baza_bin)
     H = spzeros(Float64, ile_stanow, ile_stanow) # Tworzymy rzadką macierz Hamiltonianu wpełniną zerami
-    A_1 = spzeros(Float64, ile_stanow, ile_stanow) # Operator A = sum_j S^z_j S^z_{j+1}
+    A_1 = spzeros(Float64, ile_stanow, ile_stanow) # Operator A_1 = sum_j S^z_j S^z_{j+1}
+    J_1 = spzeros(ComplexF64, ile_stanow, ile_stanow) # Operator J_1 = i*J/2 (sum_j S^+_j+1 S^-_{j} - S^+_j S^-_{j+1})
 
     for i in 1:ile_stanow
         stan = collect(baza_bin[i]) # Zamieniamy String na tablicę znaków
@@ -129,6 +130,7 @@ function gen_ham_xxz(M::Int, J::Real, Delta::Real, pbc::Bool, baza_bin::Vector{S
                     nowy_stan_int = bin_na_dec(nowy_stan_bin)
                     nowy_indeks = indeks_odwrotny[nowy_stan_int + 1]
                     H[nowy_indeks, i] += J / 2
+                    J_1[nowy_indeks, i] += -im * J / 2
                 end
 
                 if s < M && stan[s + 1] == '0' # 10 -> 01
@@ -139,6 +141,7 @@ function gen_ham_xxz(M::Int, J::Real, Delta::Real, pbc::Bool, baza_bin::Vector{S
                     nowy_stan_int = bin_na_dec(nowy_stan_bin)
                     nowy_indeks = indeks_odwrotny[nowy_stan_int + 1]
                     H[nowy_indeks, i] += J / 2
+                    J_1[nowy_indeks, i] += im * J / 2
                 end
                 
                 # PBC: przeskok z pierwszego węzła na ostatni
@@ -151,6 +154,8 @@ function gen_ham_xxz(M::Int, J::Real, Delta::Real, pbc::Bool, baza_bin::Vector{S
                         nowy_stan_int = bin_na_dec(nowy_stan_bin)
                         nowy_indeks = indeks_odwrotny[nowy_stan_int + 1]
                         H[nowy_indeks, i] += J / 2
+                        J_1[nowy_indeks, i] += -im * J / 2
+                    
                     end
                 end
 
@@ -164,6 +169,7 @@ function gen_ham_xxz(M::Int, J::Real, Delta::Real, pbc::Bool, baza_bin::Vector{S
                         nowy_stan_int = bin_na_dec(nowy_stan_bin)
                         nowy_indeks = indeks_odwrotny[nowy_stan_int + 1]
                         H[nowy_indeks, i] += J / 2
+                        J_1[nowy_indeks, i] += im * J / 2
                     end
                 end
             end
@@ -193,7 +199,7 @@ function gen_ham_xxz(M::Int, J::Real, Delta::Real, pbc::Bool, baza_bin::Vector{S
             end
         end
     end
-    return H, A_1
+    return H, A_1, J_1
 end
 
 """
@@ -264,6 +270,12 @@ function parse_args()
             required = true
             range_tester = x -> x in ["yes", "no"]
             dest_name = "pbc"
+        "-A", "--operator"
+            help = "Operator używany do funkcji korelacji: A_1 albo J_1"
+            arg_type = String
+            default = "A_1"
+            range_tester = x -> x in ["A_1", "J_1"]
+            dest_name = "operator"
   end
   return ArgParse.parse_args(s)
 end
@@ -353,51 +365,38 @@ function lanczos(A, q0, q1, beta1)
 end
 
 """
-The Lanczos Algorithm for time evolution
+The Lanczos Algorithm for one time evolution step
 """
-function dynamika_lanczos(H, psi0, delta_t, liczba_krokow, zapisuj_wszystkie_stany::Bool)
+function dynamika_lanczos(H, psi0, delta_t)
     n = size(H, 1)
-    psi = ComplexF64.(psi0)
+    psi0 = ComplexF64.(psi0)
     q0 = zeros(ComplexF64, n)
     beta_1 = 0.0
-    if zapisuj_wszystkie_stany == true
-        stany = zeros(ComplexF64, n, liczba_krokow)
-    end
-    T, Q, energie = lanczos(H, q0, psi, beta_1)
-    # Diagonalizacja macierzy: T = V D V†
+    norma_psi0 = norm(psi0) # Zapamiętujemy normę stanu wejściowego
+    T, Q, energie = lanczos(H, q0, psi0, beta_1) # Budujemy przestrzeń Kryłowa dla aktualnego stanu
+    # Diagonalizacja macierzy T = V D V†
     wynik_T = eigen(T)
     D = Diagonal(wynik_T.values)
     V = wynik_T.vectors
-    # Stan początkowy zapisany w bazie Kryłowa
+    # Stan początkowy w bazie Kryłowa
     e1 = zeros(ComplexF64, size(T, 1))
     e1[1] = 1.0
+    # Jednorazowa ewolucja: t -> t + delta_t. Lanczos pracuje na znormalizowanym q1, dlatego na końcu przywracamy normę stanu wejściowego
+    psi_koncowe = norma_psi0 * Q * V * exp(-im * D * delta_t) * adjoint(V) * e1
 
-    for krok in 1:liczba_krokow
-        t = krok * delta_t # Aktualny czas liczony od początku tego uruchomienia Lanczosa
-        psi = Q * V * exp(-im * D * t) * adjoint(V) * e1 # Ewolucja w tej samej przestrzeni Kryłowa
-        if zapisuj_wszystkie_stany == true
-            stany[:, krok] = psi
-        end
-    end
-
-    if zapisuj_wszystkie_stany == true
-        return stany # zapisujemy wszystkie stany w macierzy gdzie są one wektorami kolumnowymi
-    else
-        return psi # zapisujemy tylko ostatni stan
-    end
+    return psi_koncowe
 end
 
 """
-Corelation fuction
+Correlation function
 """
-function funkcja_korelacji(H, A_1, delta_t::Real, liczba_krokow::Int, Psi, Phi)
+function funkcja_korelacji(H, A, delta_t::Real, Psi, Phi)
 
-    # Ewolucja do następnego punktu siatki czasu
-    Psi_koncowe = dynamika_lanczos(H, Psi, delta_t, liczba_krokow, false)
-    Phi_koncowe = dynamika_lanczos(H, Phi, delta_t, liczba_krokow, false)
+    # Jednorazowa ewolucja t -> t + delta_t za pomocą funkcji
+    Psi_koncowe = dynamika_lanczos(H, Psi, delta_t)
+    Phi_koncowe = dynamika_lanczos(H, Phi, delta_t)
 
-    # Funkcja korelacji liczona tylko w miejscu restartu Lanczosa
-    C_t = dot(Psi_koncowe, A_1 * Phi_koncowe)
+    C_t = dot(Psi_koncowe, A * Phi_koncowe) # Funkcja korelacji w nowym punkcie czasu
 
     return real(C_t), Psi_koncowe, Phi_koncowe
 end
@@ -423,16 +422,16 @@ end
 """
 Corelation function using Exact Diagonalization
 """
-function funkcja_korelacji_ED(H, A_1, t::Real, Psi_0)
+function funkcja_korelacji_ED(H, A, t::Real, Psi_0)
     Psi_0 = ComplexF64.(Psi_0)
-    Phi_0 = A_1 * Psi_0
+    Phi_0 = A * Psi_0
     wynik_H = eigen(Matrix(H)) 
     D = Diagonal(wynik_H.values)
     V = wynik_H.vectors
 
     Psi_t = V * exp(-im * D * t) * adjoint(V) * Psi_0
     Phi_t = V * exp(-im * D * t) * adjoint(V) * Phi_0
-    C_t = dot(Psi_t, A_1 * Phi_t) # C(t) = <Psi(t)| A_1 |Phi(t)>
+    C_t = dot(Psi_t, A * Phi_t) # C(t) = <Psi(t)| A |Phi(t)>
     return real(C_t)
 end
 
@@ -444,17 +443,25 @@ function main()
     Delta = args["Delta"]
     pbc_argument = args["pbc"]
     pbc = pbc_argument == "yes"
+    operator_argument = args["operator"]
 
     # ---- Hamiltonian
     baza_bin, baza_int, indeks_odwrotny = gen_baza_xxz(M, N_up)
     # println("Wygenerowano bazę modelu XXZ.")
     # zapisz_baze_do_plikow(M, N_up, baza_bin, baza_int, indeks_odwrotny)
     # println("Zapisano do plików bazę modelu XXZ.")
-    H, A_1 = gen_ham_xxz(M, J, Delta, pbc, baza_bin, indeks_odwrotny)
+    H, A_1, J_1 = gen_ham_xxz(M, J, Delta, pbc, baza_bin, indeks_odwrotny)
     # println("Stworzono Hamiltonian modelu XXZ.")    
     # save_ham(H, M, N_up, J, Delta, pbc_argument)
     # println("Hamiltonian zapisano do pliku.")
 
+    # ---- Jaki opertor?
+    if operator_argument == "A_1"
+        A = A_1
+    elseif operator_argument == "J_1"
+        A = J_1
+    end
+    println("Wybrany operator: ", operator_argument)
 
     # ---- ED
     # wynik = eigen(Matrix(H))
@@ -531,45 +538,44 @@ function main()
 
     # ---- funkcja korealacji 
     # Psi_0 = losuj_q1_gauss(size(H, 1))
-    Psi_0 = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0]
+    # Psi_0 = fill(1 / sqrt(size(H, 1)), size(H, 1))
+    Psi_0 = zeros(ComplexF64, size(H, 1))
+    Psi_0[1] = 1.0
+
     t_min = 0.0
     t_max = 5.0
-    liczba_restartow_lanczosa = 200
-    liczba_krokow_dynamiki = 20
-
-    czas_miedzy_restartami = (t_max - t_min) / liczba_restartow_lanczosa # Długość przedziału pomiędzy restartami Lanczosa
-    delta_t = czas_miedzy_restartami / liczba_krokow_dynamiki # Mały krok czasowy wewnątrz jednego uruchomienia Lanczosa
+    liczba_krokow_czasu = 500
+    delta_t = (t_max - t_min) / liczba_krokow_czasu # Jeden krok czasu = jeden restart Lanczosa
 
     println("Przedział czasu: ", t_min, " - ", t_max)
-    println("Liczba restartów Lanczosa: ", liczba_restartow_lanczosa)
-    println("Czas pomiędzy restartami: ", czas_miedzy_restartami)
-    println("Liczba kroków dynamiki pomiędzy restartami: ", liczba_krokow_dynamiki)
+    println("Liczba kroków czasu: ", liczba_krokow_czasu)
     println("delta_t = ", delta_t)
-
+    # Stany początkowe
     Psi = Psi_0
-    Phi = A_1 * Psi
-    korelacja_cala = zeros(Float64, liczba_restartow_lanczosa + 1, 3)
-
-    # Jesli t_min = 0 czyli jesli psi jest stanem w chwili początkowej można tak wpisać 
+    Phi = A * Psi
+    korelacja_cala = zeros(Float64, liczba_krokow_czasu + 1, 3)
     korelacja_cala[1, 1] = t_min
-    korelacja_cala[1, 2] = korelacja_cala[1, 3]= dot(Psi, A_1 * Phi)
+    korelacja_cala[1, 2] = real(dot(Psi, A * Phi))
+    korelacja_cala[1, 3] = korelacja_cala[1, 2]
 
-    for restart in 1:liczba_restartow_lanczosa
-        println("Lanczos correlation: ", restart, "/", liczba_restartow_lanczosa)
-        C_t, Psi, Phi = funkcja_korelacji(H,A_1,delta_t,liczba_krokow_dynamiki,Psi,Phi)
-        # Czas restartu Lanczosa - siatka czasu
-        t = t_min + restart * czas_miedzy_restartami
-        korelacja_cala[restart + 1, 1] = t
-        korelacja_cala[restart + 1, 2] = C_t
-        # println("ED correlation: ", restart, "/", liczba_restartow_lanczosa)
-        C_t_ED = funkcja_korelacji_ED(H, A_1, t, Psi_0)
-        korelacja_cala[restart + 1, 3] = C_t_ED
+    for krok in 1:liczba_krokow_czasu
+        # println("Lanczos correlation: ", krok, "/", liczba_krokow_czasu)
+        # t -> t + delta_t
+        C_t, Psi, Phi = funkcja_korelacji(H, A, delta_t, Psi, Phi)
+        t = t_min + krok * delta_t # Aktualny czas
+
+        korelacja_cala[krok + 1, 1] = t
+        korelacja_cala[krok + 1, 2] = C_t
+        C_t_ED = funkcja_korelacji_ED(H, A, t, Psi_0)
+        korelacja_cala[krok + 1, 3] = C_t_ED
     end
 
-    # zapis do pliku funkcji korealcji
+    # Zapis funkcji korelacji do pliku
     output_directory = joinpath(@__DIR__, "Lanczos_XXZ_wyniki")
     mkpath(output_directory)
-    plik_korelacja = joinpath(output_directory, "korelacja_Lan_i_ED_XXZ_M_$(M)_Nup_$(N_up)_J_$(J)_Delta_$(Delta)_PBC_$(pbc_argument)_tmin_$(t_min)_tmax_$(t_max)_restarty_$(liczba_restartow_lanczosa)_kroki_$(liczba_krokow_dynamiki).txt")
+
+    plik_korelacja = joinpath(output_directory, "korelacja_Lan_i_ED_XXZ_M_$(M)_Nup_$(N_up)_J_$(J)_Delta_$(Delta)_PBC_$(pbc_argument)_operator_$(operator_argument).txt")
+
     open(plik_korelacja, "w") do io
         for i in axes(korelacja_cala, 1)
             println(io, korelacja_cala[i, 1], " ", korelacja_cala[i, 2], " ", korelacja_cala[i, 3])
@@ -577,8 +583,6 @@ function main()
     end
     println("Funkcja korelacji została zapisana do pliku:")
     println(plik_korelacja)
-
-
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

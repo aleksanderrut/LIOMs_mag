@@ -379,7 +379,7 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, max
   println("Eigenvalues/eigenvectors saved = ", eig_first, ":", eig_last)
   println("omega range = [", omega_min, ", ", omega_max, "]")
   println("g range = [", g_min, ", ", g_max, "]")
-  println("Squared coefficient tolerance = 1e-15")
+  println("Squared coefficient tolerance = 10^-4")
 
   # Baza jest przygotowywana tylko raz dla całej siatki
   ops, _, _ = prepare_operator_basis(L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson, include_fermion_identity)
@@ -423,7 +423,7 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, max
         @printf(io_evals[file_index], "%.16e\t%.16e\t%.16e\n", omega_0, g, lambda)
 
         selected_eigenvector = view(evecs,:,eig_index) # wybiera jeden wektor włąasny ten odbowaidajacy eig_index
-        save_grid_liom_row(io_lioms[file_index], omega_0, g, selected_eigenvector; coeff_sq_tol = 1e-15)
+        save_grid_liom_row(io_lioms[file_index], omega_0, g, selected_eigenvector; coeff_sq_tol = 1e-4)
       end
       next!(p)
     end
