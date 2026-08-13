@@ -594,20 +594,20 @@ function main()
 
   base_path = "$(@__DIR__)/liom_mag_dane"
   evals_path = "$(base_path)/wartosci_wlasne"
-  evecs_path = "$(base_path)/wektory_wlasne"
+  # evecs_path = "$(base_path)/wektory_wlasne"
   basis_path = "$(base_path)/bazy"
   logs_path = "$(base_path)/logi"
   mkpath(evals_path)
-  mkpath(evecs_path)
+  # mkpath(evecs_path)
   mkpath(basis_path)
   mkpath(logs_path)
   file_tag = file_tag = "ladder_mag_M_$(max_supp)_J_$(J)_Jp_$(J_prime)_d_$(Delta)_w_$(omega_0)_g_$(g)_T_$(time_reversal)_P_$(parity)_Sz_cons_fermion_$(conserve_Sz_fermion)_Sz_cons_boson_$(conserve_Sz_boson)_FId_$(include_fermion_identity)"
   filename_evals = "$(evals_path)/eigenvalues_$(file_tag).txt"
-  filename_evecs = "$(evecs_path)/eigenvectors_$(file_tag).txt"
+  # filename_evecs = "$(evecs_path)/eigenvectors_$(file_tag).txt"
   filename_operators = "$(basis_path)/operators_$(file_tag).txt"
   filename_log = "$(logs_path)/log_$(file_tag).txt"
   writedlm(filename_evals, evals)
-  writedlm(filename_evecs, evecs)
+  # writedlm(filename_evecs, evecs)
   save_operator_labels(filename_operators, ops_list)
   open(filename_log, "w") do io
     println(io, "J = ", J)
@@ -630,19 +630,19 @@ function main()
   max_evals = min(10, length(evals))
   println("$(max_evals) smallest eigenvalues:")
   println(evals[1:max_evals])
-  println("$(max_evals) eigenvectors corrsponding to smallest eigenvalues:")
-  max_label_width = maximum(length.(ops_list_rows))
+  # println("$(max_evals) eigenvectors corrsponding to smallest eigenvalues:")
+  # max_label_width = maximum(length.(ops_list_rows))
 
-  for i in eachindex(ops_list_rows)
-    op_str = ops_list_rows[i]
-    print("∑_l ", rpad(op_str, max_label_width), "   ")
-    for j in 1:max_evals
-      num_str = @sprintf("% .5f", evecs[i, j])
-      num_str = replace(num_str, " -" => "-")
-      print(" ", num_str)
-    end
-    println()
-  end
+  # for i in eachindex(ops_list_rows)
+  #   op_str = ops_list_rows[i]
+  #   print("∑_l ", rpad(op_str, max_label_width), "   ")
+  #   for j in 1:max_evals
+  #     num_str = @sprintf("% .5f", evecs[i, j])
+  #     num_str = replace(num_str, " -" => "-")
+  #     print(" ", num_str)
+  #   end
+  #   println()
+  # end
   println("Size of basis for M=$max_supp, restricted to time reversal = $time_reversal, parity = $parity, Sz conservation = $conserve_Sz_fermion/$conserve_Sz_boson, fermionic identity included = $include_fermion_identity: ", length(ops_list))
   println("Number of LIOMs found: ", count(x -> abs(x) < 1e-10, evals))
   println("Elapsed time: ", (toc - tic) / 1e9, " s")
