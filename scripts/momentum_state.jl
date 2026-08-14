@@ -164,6 +164,7 @@ Generuje macierz Hamiltonianu XXZ w bazie stanów translacyjnych.
 function gen_ham_XXZ_ms(M::Int, J::Real, Delta::Real, k::Int, baza::Vector{Tuple{Int,Int}})
     ile_stanow = length(baza)
     H = spzeros(ComplexF64, ile_stanow, ile_stanow)
+    A_1 = spzeros(ComplexF64, ile_stanow, ile_stanow)
     # Tworzenie słownika odwrotnego, aby szybko znaleźć indeks reprezentanta w bazie
     indeks_odwrotny = gen_indeks_odwrotny(baza)
     k_fiz = 2π*k/M # fizyczna wartość momentum
@@ -202,13 +203,15 @@ function gen_ham_XXZ_ms(M::Int, J::Real, Delta::Real, k::Int, baza::Vector{Tuple
             end
             # CZĘŚĆ DIAGONALNA
             if stan[s] == stan[s2]
-                H[i, i] += J * Delta / 4 # Pary 11 oraz 00
+                H[i, i] += J * Delta / 4
+                A_1[i, i] += 1 / 4
             else
-                H[i, i] -= J * Delta / 4 # Pary 10 oraz 01
+                H[i, i] -= J * Delta / 4
+                A_1[i, i] -= 1 / 4
             end
         end
     end
-    return H
+    return H, A_1
 end
 
 """
@@ -266,6 +269,120 @@ function save_all_eigenvalues(wszystkie_wartosci_wlasne::Vector{Tuple{Float64,Fl
 end
 
 """
+Generates a normalized random state vector in the computational basis, with amplitudes drawn from a Gaussian distribution.
+"""
+function gen_losowy_stan_gaussowski(M::Int, N_up::Int)
+    rozmiar_bazy = binomial(M, N_up)
+    psi0 = randn(ComplexF64, rozmiar_bazy)
+    norma_przed = norm(psi0)
+    psi0 ./= norma_przed
+    return psi0
+end
+
+"""
+The Lanczos Algorithm
+"""
+function lanczos(A, q0, q1, beta1)
+    # Tworzymy macierz T tej samej wielkości co A
+    n = size(A, 1)
+    max_iter = min(n, 1000)
+    # Normalizujemy wektor początkowy q₁
+    q = ComplexF64.(q1)
+    q = q / norm(q)
+    # println("norma_na_początku_lanczosa = ", norm(q))
+    # Początkowy poprzedni wektor q₀
+    q_previous = ComplexF64.(q0)
+    # Początkowa wartość β₁
+    beta = zeros(Float64, n)
+    beta[1] = Float64(beta1)
+    # Macierz wektorów Lanczosa ; Q = [q₁ q₂ ... qₙ]
+    Q = zeros(ComplexF64, n, n)
+    Q[:, 1] = q
+    # Współczynniki macierzy trójdiagonalnej - T
+    alpha = zeros(Float64, n)
+    energie = zeros(Float64, max_iter, 2)
+
+    for j in 1:max_iter
+        # println("\n==============================")
+        # println("ITERACJA: ", j)
+        # println("==============================")
+        # println("q_$(j - 1) = ")
+        # display(q_previous)
+        # println("q_$j = ")
+        # display(q)
+        # println("beta_$j = ", beta[j])
+        # αⱼ = qⱼᵀ A qⱼ
+        alpha[j] = real(dot(q, A * q))
+        # println("alpha_$j = ", alpha[j])
+        T_j = SymTridiagonal(alpha[1:j], beta[2:j])
+        energie[j, 1] = j
+        energie[j, 2] = eigmin(T_j)
+        # wⱼ₊₁ = A qⱼ - βⱼ qⱼ₋₁ - αⱼ qⱼ
+        w = A * q - beta[j] * q_previous - alpha[j] * q
+        # println("w_$(j + 1) = ")
+        # display(w)
+        if j < max_iter 
+            # βⱼ₊₁ = ||wⱼ₊₁||
+            beta[j + 1] = norm(w)
+            # println("beta_$(j + 1) = ", beta[j + 1])
+            if beta[j + 1] < 1e-14 # jesil beta robi się zamałe algorytm się zatrzymuje 
+                T = SymTridiagonal(alpha[1:j], beta[2:j])
+                return T, Q[:, 1:j], energie[1:j, :]
+            end
+            # qⱼ₊₁ = wⱼ₊₁ / βⱼ₊₁
+            q_next = w / beta[j + 1]
+            # println("q_$(j + 1) = ")
+            # display(q_next)
+            # Zapisujemy qⱼ₊₁ w macierzy Q
+            Q[:, j + 1] = q_next
+            # Przygotowujemy następną iterację
+            q_previous = q
+            q = q_next
+        end
+    end
+    # Budujemy macierz trójdiagonalną
+    T = SymTridiagonal(alpha[1:max_iter], beta[2:max_iter])
+    return T, Q[:, 1:max_iter], energie
+end
+
+"""
+The Lanczos Algorithm for one time evolution step
+"""
+function dynamika_lanczos(H, psi0, delta_t)
+    n = size(H, 1)
+    psi0 = ComplexF64.(psi0)
+    q0 = zeros(ComplexF64, n)
+    beta_1 = 0.0
+    norma_psi0 = norm(psi0) # Zapamiętujemy normę stanu wejściowego
+    T, Q, energie = lanczos(H, q0, psi0, beta_1) # Budujemy przestrzeń Kryłowa dla aktualnego stanu
+    # Diagonalizacja macierzy T = V D V†
+    wynik_T = eigen(T)
+    D = Diagonal(wynik_T.values)
+    V = wynik_T.vectors
+    # Stan początkowy w bazie Kryłowa
+    e1 = zeros(ComplexF64, size(T, 1))
+    e1[1] = 1.0
+    # Jednorazowa ewolucja: t -> t + delta_t. Lanczos pracuje na znormalizowanym q1, dlatego na końcu przywracamy normę stanu wejściowego
+    psi_koncowe = norma_psi0 * Q * V * exp(-im * D * delta_t) * adjoint(V) * e1
+
+    return psi_koncowe
+end
+
+"""
+Correlation function
+"""
+function funkcja_korelacji(H, A, delta_t::Real, Psi, Phi)
+
+    # Jednorazowa ewolucja t -> t + delta_t za pomocą funkcji
+    Psi_koncowe = dynamika_lanczos(H, Psi, delta_t)
+    Phi_koncowe = dynamika_lanczos(H, Phi, delta_t)
+
+    C_t = dot(Psi_koncowe, A * Phi_koncowe) # Funkcja korelacji w nowym punkcie czasu
+
+    return real(C_t), Psi_koncowe, Phi_koncowe
+end
+
+"""
 Przyjmuje parametry z terminala
 """
 function parse_args()
@@ -313,9 +430,8 @@ function main()
     Delta = args["Delta"]
     k = args["k"]
     all_k = args["all_k"]
-    folder_wyniki = raw"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\momnetu_state"
-    mkpath(folder_wyniki)
-
+    # folder_wyniki = raw"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\momnetu_state"
+    # mkpath(folder_wyniki)
     # czy pętla po k czy pojedńcze k 
     if all_k == true
         lista_k = 0:(M - 1)
@@ -323,41 +439,98 @@ function main()
         lista_k = [k]
     end
 
-    wszystkie_wartosci_wlasne = Vector{Tuple{Float64,Float64}}()
-    for k in lista_k
-        czas_k = @elapsed begin
+    # ---- Dyspersja ----
+    # wszystkie_wartosci_wlasne = Vector{Tuple{Float64,Float64}}()
+    # for k in lista_k
+    #     czas_k = @elapsed begin
+    #     println("===================================")
+    #     println("Liczenie sektora k = ", k)
+    #     println("===================================")
+
+    #     baza = gen_trans_baza_sandvik(M, N_up, k) # Generowanie bayzy
+    #     println("Liczba stanów w bazie: ", length(baza))
+
+    #     nazwa_pliku_baza = joinpath(folder_wyniki, "baza_trans_sandvik_M_$(M)_N_$(N_up)_k_$(k).txt") # Zapis bazy
+    #     open(nazwa_pliku_baza, "w") do plik
+    #         for element_bazy in baza
+    #             println(plik, join(element_bazy, " "))
+    #         end
+    #     end
+    #     # println("Baza została zapisana do pliku:")
+    #     # println(nazwa_pliku_baza)
+
+    #     H = gen_ham_XXZ_ms(M, J, Delta, k, baza) # Generowanie Hamiltonianu
+    #     # save_ham(H, M, N_up, J, Delta, k) # Zapis Hamiltonianu
+
+    #     eigen_result = eigen(Hermitian(Matrix(H))) # Diagonalizacja, z powiedzeniem funkcji że jest hermitowska
+    #     wartosci_wlasne = eigen_result.values
+    #     # save_eigenvalues(wartosci_wlasne, "wartosci_wlasne", M, N_up, J, Delta, k) # Zapis wartości własnych
+
+    #     k_fiz = 2π * k / M # fizyczna wartość pędu
+    #     for wartosc in wartosci_wlasne
+    #         push!(wszystkie_wartosci_wlasne, (k_fiz, wartosc))
+    #     end
+    # end
+    # println("Czas liczenia dla k = $(k): $(czas_k) s")
+    # end  # @elapsed begin
+    # save_all_eigenvalues(wszystkie_wartosci_wlasne, M, N_up, J, Delta)
+
+
+    # ---- Lanczos - funkcja korelacji ----
+    Psi_0 = gen_losowy_stan_gaussowski(M, N_up)
+    t_min = 0.0
+    t_max = 5.0
+    liczba_krokow_czasu = 500
+    delta_t = (t_max - t_min) / liczba_krokow_czasu
+    pierwszy_indeks = 1
+    korelacja_suma = zeros(Float64, liczba_krokow_czasu + 1, 2)
+    czas_k = @elapsed begin
+    for k in 0:(M - 1)
         println("===================================")
         println("Liczenie sektora k = ", k)
-        println("===================================")
+        # Baza sektora momentum
+        baza = gen_trans_baza_sandvik(M, N_up, k)
+        rozmiar_sektora = length(baza)
+        println("Rozmiar sektora = ", rozmiar_sektora)
 
-        baza = gen_trans_baza_sandvik(M, N_up, k) # Generowanie bayzy
-        println("Liczba stanów w bazie: ", length(baza))
+        ostatni_indeks = pierwszy_indeks + rozmiar_sektora - 1
+        Psi = copy(Psi_0[pierwszy_indeks:ostatni_indeks]) # noram przez którą później pomnożę po Lanczos che znoramlizowany wektor
+        # println("Norma Psi_k = ", norm(Psi))
+        pierwszy_indeks = ostatni_indeks + 1
 
-        # nazwa_pliku_baza = joinpath(folder_wyniki, "baza_trans_sandvik_M_$(M)_N_$(N_up)_k_$(k).txt") # Zapis bazy
-        # open(nazwa_pliku_baza, "w") do plik
-        #     for element_bazy in baza
-        #         println(plik, join(element_bazy, " "))
-        #     end
-        # end
-        # println("Baza została zapisana do pliku:")
-        # println(nazwa_pliku_baza)
+        H, A_1 = gen_ham_XXZ_ms(M, J, Delta, k, baza)
+        Phi = A_1 * Psi
 
-        H = gen_ham_XXZ_ms(M, J, Delta, k, baza) # Generowanie Hamiltonianu
-        # save_ham(H, M, N_up, J, Delta, k) # Zapis Hamiltonianu
+        # t = 0
+        korelacja_suma[1, 1] = t_min
+        C_0_k = real(dot(Psi, A_1 * Phi))
+        korelacja_suma[1, 2] += C_0_k
 
-        eigen_result = eigen(Hermitian(Matrix(H))) # Diagonalizacja, z powiedzeniem funkcji że jest hermitowska
-        wartosci_wlasne = eigen_result.values
-        # save_eigenvalues(wartosci_wlasne, "wartosci_wlasne", M, N_up, J, Delta, k) # Zapis wartości własnych
-
-        k_fiz = 2π * k / M # fizyczna wartość pędu
-        for wartosc in wartosci_wlasne
-            push!(wszystkie_wartosci_wlasne, (k_fiz, wartosc))
+        # Ewolucja czasowa w sektorze k
+        for krok in 1:liczba_krokow_czasu
+            czas = t_min + krok * delta_t
+            C_t_k, Psi, Phi = funkcja_korelacji(H, A_1, delta_t, Psi, Phi)
+            korelacja_suma[krok + 1, 1] = czas
+            korelacja_suma[krok + 1, 2] += C_t_k
         end
     end
-    println("Czas liczenia dla k = $(k): $(czas_k) s")
     end  # @elapsed begin
+    println("Czas liczenia dla k = $(k): $(czas_k) s")
 
-    save_all_eigenvalues(wszystkie_wartosci_wlasne, M, N_up, J, Delta)
+    # Zapis funkcji korelacji do pliku
+    output_directory = joinpath(@__DIR__, "momnetu_state")
+    pbc_argument = "yes"
+    operator_argument = "A_1"
+    mkpath(output_directory)
+    plik_korelacja = joinpath(output_directory,"cor_Lanczos_ms_XXZ_M_$(M)_Nup_$(N_up)_J_$(J)_Delta_$(Delta)_PBC_$(pbc_argument)_operator_$(operator_argument).txt")
+    open(plik_korelacja, "w") do io
+        for i in axes(korelacja_suma, 1)
+            println(io,korelacja_suma[i, 1]," ",korelacja_suma[i, 2])
+        end
+    end
+    println("Funkcja korelacji została zapisana do pliku:")
+    println(plik_korelacja)
+
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
