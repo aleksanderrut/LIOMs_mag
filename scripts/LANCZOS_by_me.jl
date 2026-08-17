@@ -304,7 +304,7 @@ The Lanczos Algorithm
 function lanczos(A, q0, q1, beta1)
     # Tworzymy macierz T tej samej wielkości co A
     n = size(A, 1)
-    max_iter = min(n, 1000)
+    max_iter = min(n, 200)
     # Normalizujemy wektor początkowy q₁
     q = ComplexF64.(q1)
     q = q / norm(q)
@@ -375,7 +375,7 @@ function dynamika_lanczos(H, psi0, delta_t)
     norma_psi0 = norm(psi0) # Zapamiętujemy normę stanu wejściowego
     T, Q, energie = lanczos(H, q0, psi0, beta_1) # Budujemy przestrzeń Kryłowa dla aktualnego stanu
     # Diagonalizacja macierzy T = V D V†
-    wynik_T = eigen(T)
+    wynik_T = eigen(Symmetric(Matrix(T)); alg=LinearAlgebra.QRIteration())
     D = Diagonal(wynik_T.values)
     V = wynik_T.vectors
     # Stan początkowy w bazie Kryłowa
@@ -448,7 +448,7 @@ function main()
     # ---- Hamiltonian
     baza_bin, baza_int, indeks_odwrotny = gen_baza_xxz(M, N_up)
     # println("Wygenerowano bazę modelu XXZ.")
-    # zapisz_baze_do_plikow(M, N_up, baza_bin, baza_int, indeks_odwrotny)
+    zapisz_baze_do_plikow(M, N_up, baza_bin, baza_int, indeks_odwrotny)
     # println("Zapisano do plików bazę modelu XXZ.")
     H, A_1, J_1 = gen_ham_xxz(M, J, Delta, pbc, baza_bin, indeks_odwrotny)
     # println("Stworzono Hamiltonian modelu XXZ.")    
@@ -537,14 +537,14 @@ function main()
 
 
     # ---- funkcja korealacji 
-    # Psi_0 = losuj_q1_gauss(size(H, 1))
+    Psi_0 = losuj_q1_gauss(size(H, 1))
     # Psi_0 = fill(1 / sqrt(size(H, 1)), size(H, 1))
-    Psi_0 = zeros(ComplexF64, size(H, 1))
-    Psi_0[1] = 1.0
+    # Psi_0 = zeros(ComplexF64, size(H, 1))
+    # Psi_0[1] = 1.0
 
     t_min = 0.0
-    t_max = 5.0
-    liczba_krokow_czasu = 500
+    t_max = 50.0
+    liczba_krokow_czasu = 1000
     delta_t = (t_max - t_min) / liczba_krokow_czasu # Jeden krok czasu = jeden restart Lanczosa
 
     println("Przedział czasu: ", t_min, " - ", t_max)
@@ -559,7 +559,7 @@ function main()
     korelacja_cala[1, 3] = korelacja_cala[1, 2]
 
     for krok in 1:liczba_krokow_czasu
-        # println("Lanczos correlation: ", krok, "/", liczba_krokow_czasu)
+        println("Lanczos correlation: ", krok, "/", liczba_krokow_czasu)
         # t -> t + delta_t
         C_t, Psi, Phi = funkcja_korelacji(H, A, delta_t, Psi, Phi)
         t = t_min + krok * delta_t # Aktualny czas

@@ -165,10 +165,10 @@ function gen_ham_XXZ_ms(M::Int, J::Real, Delta::Real, k::Int, baza::Vector{Tuple
     ile_stanow = length(baza)
     H = spzeros(ComplexF64, ile_stanow, ile_stanow)
     A_1 = spzeros(ComplexF64, ile_stanow, ile_stanow)
-    # Tworzenie słownika odwrotnego, aby szybko znaleźć indeks reprezentanta w bazie
-    indeks_odwrotny = gen_indeks_odwrotny(baza)
-    k_fiz = 2π*k/M # fizyczna wartość momentum
-    # głowna pętla
+    J_1 = spzeros(ComplexF64, ile_stanow, ile_stanow)
+    indeks_odwrotny = gen_indeks_odwrotny(baza)     # Tworzenie słownika odwrotnego, aby szybko znaleźć indeks reprezentanta w bazie
+    k_fiz = 2π * k / M # fizyczna wartość momentum
+    # główna pętla
     for i in 1:ile_stanow
         a = baza[i][1]
         R_a = baza[i][2]
@@ -185,21 +185,27 @@ function gen_ham_XXZ_ms(M::Int, J::Real, Delta::Real, k::Int, baza::Vector{Tuple
                 nowy_stan = copy(stan)
                 nowy_stan[s] = stan[s2]
                 nowy_stan[s2] = stan[s]
-                # powrót to stringa i konwersja na int
+                # powrót do stringa i konwersja na int
                 nowy_stan_bin = join(nowy_stan)
                 nowy_stan_int = bin_na_dec(nowy_stan_bin)
-
-                # Stan po działaniu H nie musi być reprezentantem, zajdujemy jego reprezentanta b oraz l:
+                # Stan po działaniu H nie musi być reprezentantem, znajdujemy jego reprezentanta b oraz l
                 reprezentant_b, l = znajdz_reprezentanta_oraz_l(nowy_stan_int, M)
-
-                # Jeżeli reprezentanta nie ma w bazie dla danego k, to stan nie jest kompatybilny z tym sektorem momentum.
+                # Szukamy reprezentanta w aktualnym sektorze momentum
                 nowy_indeks = get(indeks_odwrotny, reprezentant_b, 0)
-                if nowy_indeks == 0
-                    continue
+                # Jeżeli reprezentant istnieje w tym sektorze, dodajemy część pozadiagonalną
+                if nowy_indeks != 0
+                    R_b = baza[nowy_indeks][2]
+                    # <b(k)|H_j|a(k)> = h_j(a) exp(-i q l) sqrt(R_a/R_b)
+                    H[nowy_indeks, i] += (J / 2) * exp(-im * k_fiz * l) * sqrt(R_a / R_b)
+                    # Operator prądu J_1
+                    if stan[s] == '1' && stan[s2] == '0'
+                        # 10 -> 01
+                        J_1[nowy_indeks, i] += (im * J / 2) * exp(-im * k_fiz * l) * sqrt(R_a / R_b)
+                    elseif stan[s] == '0' && stan[s2] == '1'
+                        # 01 -> 10
+                        J_1[nowy_indeks, i] += (-im * J / 2) * exp(-im * k_fiz * l) * sqrt(R_a / R_b)
+                    end
                 end
-                R_b = baza[nowy_indeks][2]
-                # <b(k)|H_j|a(k)> = h_j(a) exp(-i q l) sqrt(R_a/R_b)
-                H[nowy_indeks, i] += (J / 2) * exp(-im * k_fiz * l) * sqrt(R_a / R_b)
             end
             # CZĘŚĆ DIAGONALNA
             if stan[s] == stan[s2]
@@ -211,7 +217,8 @@ function gen_ham_XXZ_ms(M::Int, J::Real, Delta::Real, k::Int, baza::Vector{Tuple
             end
         end
     end
-    return H, A_1
+
+    return H, A_1, J_1
 end
 
 """
@@ -356,7 +363,7 @@ function dynamika_lanczos(H, psi0, delta_t)
     norma_psi0 = norm(psi0) # Zapamiętujemy normę stanu wejściowego
     T, Q, energie = lanczos(H, q0, psi0, beta_1) # Budujemy przestrzeń Kryłowa dla aktualnego stanu
     # Diagonalizacja macierzy T = V D V†
-    wynik_T = eigen(T)
+    wynik_T = wynik_T = eigen(Symmetric(Matrix(T));alg = LinearAlgebra.DivideAndConquer())
     D = Diagonal(wynik_T.values)
     V = wynik_T.vectors
     # Stan początkowy w bazie Kryłowa
@@ -430,8 +437,8 @@ function main()
     Delta = args["Delta"]
     k = args["k"]
     all_k = args["all_k"]
-    # folder_wyniki = raw"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\momnetu_state"
-    # mkpath(folder_wyniki)
+    folder_wyniki = raw"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\momnetu_state"
+    mkpath(folder_wyniki)
     # czy pętla po k czy pojedńcze k 
     if all_k == true
         lista_k = 0:(M - 1)
@@ -440,47 +447,46 @@ function main()
     end
 
     # ---- Dyspersja ----
-    # wszystkie_wartosci_wlasne = Vector{Tuple{Float64,Float64}}()
-    # for k in lista_k
-    #     czas_k = @elapsed begin
-    #     println("===================================")
-    #     println("Liczenie sektora k = ", k)
-    #     println("===================================")
+    wszystkie_wartosci_wlasne = Vector{Tuple{Float64,Float64}}()
+    for k in lista_k
+        czas_k = @elapsed begin
+        println("===================================")
+        println("Liczenie sektora k = ", k)
+        println("===================================")
 
-    #     baza = gen_trans_baza_sandvik(M, N_up, k) # Generowanie bayzy
-    #     println("Liczba stanów w bazie: ", length(baza))
+        baza = gen_trans_baza_sandvik(M, N_up, k) # Generowanie bayzy
+        println("Liczba stanów w bazie: ", length(baza))
 
-    #     nazwa_pliku_baza = joinpath(folder_wyniki, "baza_trans_sandvik_M_$(M)_N_$(N_up)_k_$(k).txt") # Zapis bazy
-    #     open(nazwa_pliku_baza, "w") do plik
-    #         for element_bazy in baza
-    #             println(plik, join(element_bazy, " "))
-    #         end
-    #     end
-    #     # println("Baza została zapisana do pliku:")
-    #     # println(nazwa_pliku_baza)
+        nazwa_pliku_baza = joinpath(folder_wyniki, "baza_trans_sandvik_M_$(M)_N_$(N_up)_k_$(k).txt") # Zapis bazy
+        open(nazwa_pliku_baza, "w") do plik
+            for element_bazy in baza
+                println(plik, join(element_bazy, " "))
+            end
+        end
+        println("Baza została zapisana do pliku:")
+        println(nazwa_pliku_baza)
 
-    #     H = gen_ham_XXZ_ms(M, J, Delta, k, baza) # Generowanie Hamiltonianu
-    #     # save_ham(H, M, N_up, J, Delta, k) # Zapis Hamiltonianu
+        H, A_1, J_1 = gen_ham_XXZ_ms(M, J, Delta, k, baza) # Generowanie Hamiltonianu
+        # save_ham(H, M, N_up, J, Delta, k) # Zapis Hamiltonianu
 
-    #     eigen_result = eigen(Hermitian(Matrix(H))) # Diagonalizacja, z powiedzeniem funkcji że jest hermitowska
-    #     wartosci_wlasne = eigen_result.values
-    #     # save_eigenvalues(wartosci_wlasne, "wartosci_wlasne", M, N_up, J, Delta, k) # Zapis wartości własnych
+        eigen_result = eigen(Hermitian(Matrix(H))) # Diagonalizacja, z powiedzeniem funkcji że jest hermitowska
+        wartosci_wlasne = eigen_result.values
+        save_eigenvalues(wartosci_wlasne, "wartosci_wlasne", M, N_up, J, Delta, k) # Zapis wartości własnych
 
-    #     k_fiz = 2π * k / M # fizyczna wartość pędu
-    #     for wartosc in wartosci_wlasne
-    #         push!(wszystkie_wartosci_wlasne, (k_fiz, wartosc))
-    #     end
-    # end
-    # println("Czas liczenia dla k = $(k): $(czas_k) s")
-    # end  # @elapsed begin
-    # save_all_eigenvalues(wszystkie_wartosci_wlasne, M, N_up, J, Delta)
-
+        k_fiz = 2π * k / M # fizyczna wartość pędu
+        for wartosc in wartosci_wlasne
+            push!(wszystkie_wartosci_wlasne, (k_fiz, wartosc))
+        end
+    end
+    println("Czas liczenia dla k = $(k): $(czas_k) s")
+    end  # @elapsed begin
+    save_all_eigenvalues(wszystkie_wartosci_wlasne, M, N_up, J, Delta)
 
     # ---- Lanczos - funkcja korelacji ----
     Psi_0 = gen_losowy_stan_gaussowski(M, N_up)
     t_min = 0.0
-    t_max = 5.0
-    liczba_krokow_czasu = 500
+    t_max = 50.0
+    liczba_krokow_czasu = 1000
     delta_t = (t_max - t_min) / liczba_krokow_czasu
     pierwszy_indeks = 1
     korelacja_suma = zeros(Float64, liczba_krokow_czasu + 1, 2)
@@ -498,18 +504,18 @@ function main()
         # println("Norma Psi_k = ", norm(Psi))
         pierwszy_indeks = ostatni_indeks + 1
 
-        H, A_1 = gen_ham_XXZ_ms(M, J, Delta, k, baza)
-        Phi = A_1 * Psi
+        H, A_1, J_1 = gen_ham_XXZ_ms(M, J, Delta, k, baza)
+        Phi = J_1 * Psi
 
         # t = 0
         korelacja_suma[1, 1] = t_min
-        C_0_k = real(dot(Psi, A_1 * Phi))
+        C_0_k = real(dot(Psi, J_1 * Phi))
         korelacja_suma[1, 2] += C_0_k
 
         # Ewolucja czasowa w sektorze k
         for krok in 1:liczba_krokow_czasu
             czas = t_min + krok * delta_t
-            C_t_k, Psi, Phi = funkcja_korelacji(H, A_1, delta_t, Psi, Phi)
+            C_t_k, Psi, Phi = funkcja_korelacji(H, J_1, delta_t, Psi, Phi)
             korelacja_suma[krok + 1, 1] = czas
             korelacja_suma[krok + 1, 2] += C_t_k
         end
@@ -520,7 +526,7 @@ function main()
     # Zapis funkcji korelacji do pliku
     output_directory = joinpath(@__DIR__, "momnetu_state")
     pbc_argument = "yes"
-    operator_argument = "A_1"
+    operator_argument = "J_1"
     mkpath(output_directory)
     plik_korelacja = joinpath(output_directory,"cor_Lanczos_ms_XXZ_M_$(M)_Nup_$(N_up)_J_$(J)_Delta_$(Delta)_PBC_$(pbc_argument)_operator_$(operator_argument).txt")
     open(plik_korelacja, "w") do io
