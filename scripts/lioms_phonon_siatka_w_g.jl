@@ -10,7 +10,7 @@ using ArgParse
 One-leg XXZ ladder Hamiltonian with periodic boundary conditions along the leg and rung phonon coupling.
 Hamiltonian written in the S+, S-, Sz basis.
 """
-function XXZ_ladder(J::Float64, L::Int, Δ::Float64, ω_0::Float64, g::Float64, J_prime::Float64)
+function XXZ_ladder(J::Float64, L::Int, Δ::Float64, Δ_2::Float64, ω_0::Float64, g::Float64, J_prime::Float64)
   H = ps.Operator(L * 2)
 
   for l in 1:L
@@ -26,6 +26,7 @@ function XXZ_ladder(J::Float64, L::Int, Δ::Float64, ω_0::Float64, g::Float64, 
 
     H += (J_prime / 2) * ps.string_2d(("S+", l, 2, "S-", lp, 2), L, 2)
     H += (J_prime / 2) * ps.string_2d(("S-", l, 2, "S+", lp, 2), L, 2)
+    H += (J * Δ_2) * ps.string_2d(("Sz", l, 2, "Sz", lp, 2), L, 2)
     #H += (J_prime * Δ) * ps.string_2d(("Sz", l, 2, "Sz", lp, 2), L, 2)
   end
   
@@ -368,7 +369,7 @@ end
 """
 Scan the omega vs g grid and save selected eigenvalues and LIOM coefficients.
 """
-function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol, include_fermion_identity::Bool,
+function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, Delta_2::Float64, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol, include_fermion_identity::Bool,
     grid_omega::Int, grid_g::Int, eig_first::Int, eig_last::Int, omega_min::Float64, omega_max::Float64, g_min::Float64, g_max::Float64)
 
   println("Running omega/g grid scan mode.")
@@ -391,7 +392,7 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, max
   mkpath(grid_path)
   mkpath(lioms_grid_path)
   fid_tag = include_fermion_identity ? "yes" : "no"
-  base_file_tag = "M$(max_supp)" * "_Jp$(J_prime)" * "_d$(Delta)" * "_T$(time_reversal)" * "_P$(parity)" * "_F$(conserve_Sz_fermion)" * "_B$(conserve_Sz_boson)" * "_FId$(fid_tag)"
+  base_file_tag = "M$(max_supp)" * "_Jp$(J_prime)" * "_d$(Delta)" * "_d2$(Delta_2)" * "_T$(time_reversal)" * "_P$(parity)" * "_F$(conserve_Sz_fermion)" * "_B$(conserve_Sz_boson)" * "_FId$(fid_tag)"
   # Nazwy plików dla kolejnych eig
   filename_grids = String[]
   filename_lioms_grids = String[]
@@ -410,7 +411,7 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, max
   # Główna pętla funkcji 
   for omega_0 in omega_values
     for g in g_values
-      H = XXZ_ladder(J, L, Delta, omega_0, g, J_prime)
+      H = XXZ_ladder(J, L, Delta, Delta_2, omega_0, g, J_prime)
       # Jedna diagonalizacja dla danego punktu
       evals, evecs = compute_eigensystem_from_prepared_basis(H, ops)
       # Zapis wszystkich wybranych wartości i wektorów własnych
@@ -519,6 +520,10 @@ function parse_args()
     help = "Maximal g value in grid scan"
     arg_type = Float64
     default = 10.0
+    "--delta-2"
+    help = "Anisotropy parameter Δ_2 on the second leg"
+    arg_type = Float64
+    default = 0.0
   end
   return ArgParse.parse_args(s)
 end
@@ -545,6 +550,7 @@ function main()
   J = 1.0
   J_prime = args["J-prime"]
   Delta = args["delta"]
+  Delta_2 = args["delta-2"]
   omega_0 = args["omega"]
   max_supp = args["max-supp"]
   g = args["coupling"]
@@ -562,6 +568,7 @@ function main()
   println("J = ", J)
   println("J_prime = ", J_prime)
   println("Δ = ", Delta)
+  println("Δ_2 = ", Delta_2)
   println("ω_0 = ", omega_0)
   println("g = ", g)
   println("max_supp = ", max_supp)
@@ -574,13 +581,13 @@ function main()
 
   # Tryb siatki
   if grid_omega > 1 || grid_g > 1
-    run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol, include_fermion_identity::Bool,
+    run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, Delta_2::Float64, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol, include_fermion_identity::Bool,
       grid_omega::Int, grid_g::Int, eig_first::Int, eig_last::Int, omega_min::Float64, omega_max::Float64, g_min::Float64, g_max::Float64)
     return
   end
   
   # To ponirzej wykona się tylko NIE w trybie siatki czyli dla omega_grid = 1 i g_grid = 1 
-  H = XXZ_ladder(J, L, Delta, omega_0, g, J_prime)
+  H = XXZ_ladder(J, L, Delta, Delta_2, omega_0, g, J_prime)
   println("Hamiltonian:")
   println(H)
 
@@ -597,7 +604,7 @@ function main()
   # mkpath(evecs_path)
   mkpath(basis_path)
   mkpath(logs_path)
-  file_tag = file_tag = "ladder_mag_M_$(max_supp)_J_$(J)_Jp_$(J_prime)_d_$(Delta)_w_$(omega_0)_g_$(g)_T_$(time_reversal)_P_$(parity)_Sz_cons_fermion_$(conserve_Sz_fermion)_Sz_cons_boson_$(conserve_Sz_boson)_FId_$(include_fermion_identity)"
+  file_tag = "ladder_mag_M_$(max_supp)_J_$(J)_Jp_$(J_prime)_d_$(Delta)_d2_$(Delta_2)_w_$(omega_0)_g_$(g)_T_$(time_reversal)_P_$(parity)_Sz_cons_fermion_$(conserve_Sz_fermion)_Sz_cons_boson_$(conserve_Sz_boson)_FId_$(include_fermion_identity)"
   filename_evals = "$(evals_path)/eigenvalues_$(file_tag).txt"
   # filename_evecs = "$(evecs_path)/eigenvectors_$(file_tag).txt"
   filename_operators = "$(basis_path)/operators_$(file_tag).txt"
@@ -609,6 +616,7 @@ function main()
     println(io, "J = ", J)
     println(io, "J_prime = ", J_prime)
     println(io, "Δ = ", Delta)
+    println(io, "Δ_2 = ", Delta_2)
     println(io, "ω_0 = ", omega_0)
     println(io, "g = ", g)
     println(io, "max_supp = ", max_supp)
