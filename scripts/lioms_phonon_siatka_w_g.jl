@@ -149,7 +149,7 @@ function build_ladder_operator(upper_list::Vector{Int}, upper_T::Symbol, lower_l
   op = ps.Operator(L * 2)
   upper_terms = leg_terms(upper_list, upper_T)
   lower_terms = leg_terms(lower_list, lower_T)
-  #takie trochę mnożenie kazdego elmentu z każdym
+  # takie trochę mnożenie kazdego elmentu z każdym
   """
   przykład       góra:  +i 130    oraz   -i 310;        dół:   +i 132    oraz   -i 312
   (+i)(+i) 130|132  = - 130|132
@@ -182,7 +182,7 @@ function generate_leg_blocks(M::Int, conserve_Sz::Symbol)
     (conserve_Sz == :yes) && Sz_check != 0 && continue
     (conserve_Sz == :no) && Sz_check == 0 && continue
 
-    if sum(in.(op_list, Ref([1, 3]))) != 0 # czy mozna zbudowac T odd (imag) jesli idziemy do drugiego warunku 
+    if sum(in.(op_list, Ref([1, 3]))) != 0 # czy mozna zbudowac T odd (imag) jesli można idziemy do drugiego warunku 
       T = :odd
       P = parity_sector(op_list, T) # już rostrzygające czy P - ecen czy P - odd
       push!(legs, (op_list, T, P, Sz_check))
@@ -202,13 +202,12 @@ function all_M_ladder_leg_sym(L::Int, M::Int, time_reversal::Symbol, parity::Sym
   ops = ps.OperatorTS[]
   ops_list = []
   ops_list_rows = String[]
-
   upper_legs = generate_leg_blocks(M, conserve_Sz_fermion)
   lower_legs = generate_leg_blocks(M, conserve_Sz_boson)
 
   #pęta po wszystkich kombinacjach opertorów na górenj i dolnej nodze
   for upper in upper_legs
-    upper_list, upper_T, upper_P, upper_Sz = upper
+    upper_list, upper_T, upper_P, upper_Sz = upper # rozpakowanie to czterech zmiennych 
     for lower in lower_legs
       lower_list, lower_T, lower_P, lower_Sz = lower
 
@@ -231,7 +230,7 @@ function all_M_ladder_leg_sym(L::Int, M::Int, time_reversal::Symbol, parity::Sym
       #println(sector_char(upper_T) * sector_char(lower_T), "\t", digits_string(upper_list), "|", digits_string(lower_list))
       #println(op)
       #println()
-      nrm = hs_norm(op)
+      nrm = hs_norm(op) # warunek, że jesli norma z Iloczyny Hliberta-Schmita opertora jest zerowa to musiał się wyzerowac jakoś
       abs(nrm) < 1e-12 && continue
 
       push!(ops, op)
@@ -242,6 +241,9 @@ function all_M_ladder_leg_sym(L::Int, M::Int, time_reversal::Symbol, parity::Sym
   return ops, ops_list, ops_list_rows
 end
 
+"""
+Generate, filter, and normalize the operator basis for repeated calculations.
+"""
 function prepare_operator_basis(L::Int, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol, include_fermion_identity::Bool)
   println("Generating operator basis...")
   ops, ops_list, ops_list_rows = all_M_ladder_leg_sym(L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson, include_fermion_identity)
@@ -264,26 +266,19 @@ function compute_eigensystem_from_prepared_basis(H::ps.OperatorTS, ops::Vector{p
   comms = Vector{ps.OperatorTS}(undef, length(ops))
   # Bez println i bez osobnego paska postępu
   for i in eachindex(ops)
-    comms[i] = im * ps.com(H, ops[i])
+    comms[i] = im * ps.com(H, ops[i]) # Liczenie komutatora: A_​i=i[H,O_i​].
   end
   corr_mat = zeros(Float64, length(ops), length(ops))
-  # Obliczanie macierzy pozostaje wielowątkowe
+  # Obliczanie macierzy - wielowątkowe
   @threads :greedy for i in eachindex(ops)
     comm_i = comms[i]
-
     for j in i:length(ops)
       comm_j = comms[j]
-
-      corr_mat[i, j] = real(
-        hs_product(comm_i, comm_j)
-      )
-
-      i != j && (
-        corr_mat[j, i] = corr_mat[i, j]
-      )
+      corr_mat[i, j] = real(hs_product(comm_i, comm_j))
+      i != j && (corr_mat[j, i] = corr_mat[i, j])
     end
   end
-  F = eigen(Symmetric(corr_mat))
+  F = eigen(Symmetric(corr_mat)) # daigonalizacja 
   return F.values, F.vectors
 end
 
@@ -359,7 +354,7 @@ function compute_lioms(H::ps.OperatorTS, L::Int, max_supp::Int, time_reversal::S
 end
 
 """
-Save basis in requested short format.
+Save basis in short format.
 """
 function save_operator_labels(filename, ops_list)
   open(filename, "w") do io
@@ -370,6 +365,9 @@ function save_operator_labels(filename, ops_list)
   end
 end
 
+"""
+Scan the omega vs g grid and save selected eigenvalues and LIOM coefficients.
+"""
 function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol, include_fermion_identity::Bool,
     grid_omega::Int, grid_g::Int, eig_first::Int, eig_last::Int, omega_min::Float64, omega_max::Float64, g_min::Float64, g_max::Float64)
 
@@ -383,7 +381,6 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, max
 
   # Baza jest przygotowywana tylko raz dla całej siatki
   ops, _, _ = prepare_operator_basis(L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson, include_fermion_identity)
-
   omega_values = collect(range(omega_min, omega_max; length = grid_omega))
   g_values = collect(range(g_min, g_max; length = grid_g))
 
@@ -410,12 +407,12 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, max
   total_points = grid_omega * grid_g
   p = Progress(total_points; desc = "Computing omega/g grid...", showspeed = true)
 
+  # Główna pętla funkcji 
   for omega_0 in omega_values
     for g in g_values
       H = XXZ_ladder(J, L, Delta, omega_0, g, J_prime)
       # Jedna diagonalizacja dla danego punktu
-      evals, evecs =compute_eigensystem_from_prepared_basis(H, ops)
-
+      evals, evecs = compute_eigensystem_from_prepared_basis(H, ops)
       # Zapis wszystkich wybranych wartości i wektorów własnych
       for eig_index in eig_first:eig_last
         file_index = eig_index - eig_first + 1
@@ -533,13 +530,11 @@ function main()
   allowed_parity = ["even", "odd", "both"]
   !(args["parity"] in allowed_parity) && error("Invalid --parity: $(args["parity"]). Must be one of $(allowed_parity)")
   allowed_conserve_Sz = ["yes", "no", "both"]
-  !(args["conserve-Sz-fermion"] in allowed_conserve_Sz) &&
-  error("Invalid --conserve-Sz-fermion: $(args["conserve-Sz-fermion"]). Must be one of $(allowed_conserve_Sz)")
-  !(args["conserve-Sz-boson"] in allowed_conserve_Sz) &&
-  error("Invalid --conserve-Sz-boson: $(args["conserve-Sz-boson"]). Must be one of $(allowed_conserve_Sz)")
+  !(args["conserve-Sz-fermion"] in allowed_conserve_Sz) && error("Invalid --conserve-Sz-fermion: $(args["conserve-Sz-fermion"]). Must be one of $(allowed_conserve_Sz)")
+  allowed_conserve_Sz = ["yes", "no", "both"]
+  !(args["conserve-Sz-boson"] in allowed_conserve_Sz) && error("Invalid --conserve-Sz-boson: $(args["conserve-Sz-boson"]). Must be one of $(allowed_conserve_Sz)")
   allowed_bool_options = ["yes", "no"]
-  !(args["include-fermion-identity"] in allowed_bool_options) &&
-  error("Invalid --include-fermion-identity: $(args["include-fermion-identity"]). Must be one of $(allowed_bool_options)")
+  !(args["include-fermion-identity"] in allowed_bool_options) && error("Invalid --include-fermion-identity: $(args["include-fermion-identity"]). Must be one of $(allowed_bool_options)")
 
   time_reversal = Symbol(args["time-reversal"])
   parity = Symbol(args["parity"])
@@ -577,13 +572,14 @@ function main()
   println("Conserve Sz on bosonic leg? = ", conserve_Sz_boson)
   println("Include fermionic identity-only leg? = ", include_fermion_identity)
 
+  # Tryb siatki
   if grid_omega > 1 || grid_g > 1
     run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, max_supp::Int, time_reversal::Symbol, parity::Symbol, conserve_Sz_fermion::Symbol, conserve_Sz_boson::Symbol, include_fermion_identity::Bool,
       grid_omega::Int, grid_g::Int, eig_first::Int, eig_last::Int, omega_min::Float64, omega_max::Float64, g_min::Float64, g_max::Float64)
     return
   end
   
-  #To ponirzej wykona się tylko NIE w trubie siatki czyli dla omega_grid = 1 i g_grid = 1 
+  # To ponirzej wykona się tylko NIE w trybie siatki czyli dla omega_grid = 1 i g_grid = 1 
   H = XXZ_ladder(J, L, Delta, omega_0, g, J_prime)
   println("Hamiltonian:")
   println(H)
