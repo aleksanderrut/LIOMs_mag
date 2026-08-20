@@ -11,13 +11,16 @@ import numpy as np
 
 # Plik z rozpisanymi współczynnikami LIOM-u
 filename = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\se_2_13.08.2026\siatka_omega_g_liomsy\lioms_grid_M3_Jp0.0_d1.5_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_5_20.08.2026\siatka_omega_g_liomsy\lioms_grid_M3_Jp0.0_d0.8_d20.3_Tboth_Pboth_Fyes_Bboth_FIdyes_eig4.txt"
 )
 
 # Numery elementów bazy, które chcemy narysować
 #wybrane_operatory = [3,8, 194, 7, 12, 202, 451]
 #wybrane_operatory = [3,7,8,12,50,62,118]
-wybrane_operatory = [3,7,8,12,50,53,62,113,118,166]
+#wybrane_operatory = [3,7,8,12,50,53,62,113,118,166]
+
+wybrane_operatory = [1,3,4,8,10,12,20,34,50,62]
+#wybrane_operatory = [1,3,4,8,12,20,34,50,181,289]
 
 show_plot = True
 save_plot = True
@@ -36,6 +39,8 @@ manual_legend_entries = [
     # M=3, FId=yes
     ###########################################################################
 
+    (1, r"$\;S^z{i,2}\quad$"),
+
     (3, r"$\;S^-_{i,2}+S^+_{i,2}\quad$"),
 
     (4, r"$\;S^z_{i,2}S^z_{i+1,2}\quad$"),
@@ -44,19 +49,34 @@ manual_legend_entries = [
 
     (8, r"$\;S^+_{i,2}S^-_{i+1,2}"r"+S^-_{i,2}S^+_{i+1,2}\quad$"),
 
+    (10, r"$\;S^z_{i+1,1}\left(S^-_{i,1}+S^+_{i,1}\right)\quad$"),
+
     (12, r"$\;S^-_{i,2}S^-_{i+1,2}"r"+S^+_{i,2}S^+_{i+1,2}\quad$"),
+
+    (20, r"$\;S^+_{i,2}S^z_{i+1,2}S^-_{i+2,2}"
+      r"+S^-_{i,2}S^z_{i+1,2}S^+_{i+2,2}\quad$"),
+
+    (32, r"$\;S^+_{i,2}S^+_{i+1,2}S^-_{i+2,2}"
+     r"+S^-_{i,2}S^-_{i+1,2}S^+_{i+2,2}\quad$"),
 
     (50, r"$\;S^z_{i,1}S^z_{i,2}\quad$"),
 
     (53, r"$\;S^z_{i,1}S^z_{i+1,2}\quad$"),
 
-    (62, r"$\;S^z_{i,1}S^z_{i,2}\left(S^-_{i+1,2}+S^+_{i+1,2}\right)\quad$"),
+    (62, r"$\;S^z_{i,1}S^z_{i,2}"
+     r"\left(S^-_{i+1,2}+S^+_{i+1,2}\right)\quad$"),
 
     (113, r"$\;S^z_{i+1,1}S^z_{i,2}\quad$"),
 
-    (118, r"$\;S^z_{i+1,1}S^z_{i+1,2}\left(S^-_{i,2}+S^+_{i,2}\right)\quad$"),
+    (118, r"$\;S^z_{i+1,1}S^z_{i+1,2}"
+      r"\left(S^-_{i,2}+S^+_{i,2}\right)\quad$"),
 
     (166, r"$\;S^z_{i,1}S^z_{i+1,1}S^z_{i,2}S^z_{i+1,2}\quad$"),
+
+    (181, r"$\;S^z_{i,1}S^z_{i+1,1}S^z_{i+1,2}S^z_{i+2,2}\quad$"),
+
+    (289, r"$\;S^+_{i,1}S^-_{i+1,1}"
+      r"+S^-_{i,1}S^+_{i+1,1}\quad$"),
 
     ###########################################################################
     # M=3, FId=no
@@ -231,7 +251,7 @@ plot_title_fontsize = 16
 dpi = 300
 
 output_directory = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\M=3"
+    r"C:\Users\aleks\Desktop\praca magisterska\meeting_20.08.2026"
 )
 
 
@@ -244,6 +264,7 @@ match_title = re.search(
     r"M(?P<M>\d+)_"
     r"Jp(?P<Jp>[^_]+)_"
     r"d(?P<Delta>[^_]+)_"
+    r"d2(?P<Delta2>[^_]+)_"
     r"T(?P<T>[^_]+)_"
     r"P(?P<P>[^_]+)_"
     r"F(?P<F>[^_]+)_"
@@ -262,6 +283,7 @@ if match_title is None:
 M = match_title.group("M")
 Jp = match_title.group("Jp")
 Delta = match_title.group("Delta")
+Delta2 = match_title.group("Delta2")
 T = match_title.group("T")
 P = match_title.group("P")
 F = match_title.group("F")
@@ -279,6 +301,7 @@ output_filename = output_directory / (
     f"M{M}_"
     f"Jp{Jp}_"
     f"d{Delta}_"
+    f"d2{Delta2}_"
     f"T{T}_"
     f"P{P}_"
     f"F{F}_"
@@ -454,6 +477,7 @@ fig, ax = plt.subplots(
 
 tytul = (
     rf"$M = {M};\ J' = {Jp};\ \Delta = {Delta};\ "
+    rf"\Delta_2 = {Delta2};\ "
     rf"\mathrm{{T}} = \mathrm{{{T}}};\ "
     rf"\mathrm{{P}} = \mathrm{{{P}}};\ "
     rf"\mathrm{{F}} = \mathrm{{{F}}};\ "
