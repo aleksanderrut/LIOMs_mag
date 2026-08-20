@@ -463,7 +463,7 @@ function main()
     end
     println("Wybrany operator: ", operator_argument)
 
-    # ---- ED
+    # ---- ED ----
     # wynik = eigen(Matrix(H))
     # wartosci_wlasne = wynik.values
     # wektory_wlasne = wynik.vectors
@@ -471,7 +471,7 @@ function main()
     # println("Wartości własne zapisano do pliku.")
 
 
-    # ---- Lanczos
+    # ---- Lanczos ----
     # q0 = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     # q0 = zeros(size(H, 1))
     # q1 = ComplexF64[0.0, 0.0, 0.0, 1.0, 0.0, 0.0]
@@ -489,7 +489,7 @@ function main()
     # println("Wartości własne zapisano do pliku.")
 
 
-    # ---- porównanie wyników z ED i Lanczosa
+    # ---- porównanie wyników z ED i Lanczosa ----
     # E_ED = eigmin(Matrix(H))
     # roznice_energii = zeros(Float64, size(energie, 1), 2)
     # for j in axes(energie, 1)
@@ -505,7 +505,7 @@ function main()
     # end
 
 
-    # # ---- dynamika za pomocą algorytmu Lanczosa
+    # # ---- dynamika za pomocą algorytmu Lanczosa ----
     # psi0 = losuj_q1_gauss(size(H, 1))
     # delta_t = 0.01
     # liczba_krokow = 100
@@ -521,7 +521,7 @@ function main()
     # end
 
 
-    # # ---- dynamika za pomocą diagonalizacji
+    # # ---- dynamika za pomocą diagonalizacji ----
     # # psi0 = losuj_q1_gauss(size(H, 1))
     # # delta_t = 0.01
     # # liczba_krokow = 100
@@ -536,7 +536,7 @@ function main()
     # end
 
 
-    # ---- funkcja korealacji 
+    # ---- funkcja korealacji -----
     Psi_0 = losuj_q1_gauss(size(H, 1))
     # Psi_0 = fill(1 / sqrt(size(H, 1)), size(H, 1))
     # Psi_0 = zeros(ComplexF64, size(H, 1))
