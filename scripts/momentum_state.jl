@@ -734,7 +734,6 @@ function main()
     end
     korelacja_suma[:, 4] ./= Z_trace
 
-
     # Zapis
     output_directory = joinpath(@__DIR__, "momnetu_state")
     pbc_argument = "yes"

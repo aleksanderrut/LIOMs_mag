@@ -12,4 +12,5 @@ Thumbs.db
 /scripts/liom_mag_dane/
 
 # Generated plots
-/plots/
+/plots/lioms_wykresy/
+/plots/trainship_figures/
