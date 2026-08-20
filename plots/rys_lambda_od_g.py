@@ -12,18 +12,18 @@ import numpy as np
 # Może to być dowolny plik z danej serii.
 # Numer po "_eig" zostanie automatycznie podmieniony.
 filename_template = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_3_16.08.2026\siatka_omega_g\grid_M4_Jp0.25_d1.5_Tboth_Pboth_Fyes_Bboth_FIdno_eig1.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_4_20.08.2026\siatka_omega_g\grid_M3_Jp0.0_d0.8_d20.3_Tboth_Pboth_Fyes_Bboth_FIdyes_eig1.txt"
 )
 
 # Zakres wartości własnych do narysowania na JEDNYM wykresie
-eig_min = 1
-eig_max = 10
+eig_min = 16
+eig_max = 17
 
 save_plot = True
 show_plot = True
 
 # Folder zapisu
-output_directory = Path(r"C:\Users\aleks\Desktop\praca magisterska\M=4")
+output_directory = Path(r"C:\Users\aleks\Desktop\praca magisterska\meeting_20.08.2026")
 output_directory.mkdir(parents=True, exist_ok=True)
 
 

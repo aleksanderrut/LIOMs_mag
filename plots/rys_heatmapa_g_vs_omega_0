@@ -1,0 +1,544 @@
+from pathlib import Path
+import re
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+# =============================================================================
+# USTAWIENIA
+# =============================================================================
+
+# Dowolny plik z tej samej serii.
+# Numer eig w tej ścieżce zostanie automatycznie podmieniony.
+filename = Path(
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_4_20.08.2026\siatka_omega_g\grid_M3_Jp0.0_d0.8_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+)
+
+
+# =============================================================================
+# TRYB RYSOWANIA EIG
+# =============================================================================
+
+# "single" -> jeden wybrany eig
+# "sum"    -> suma wartości dla zakresu eig
+
+mode = "single"
+
+
+# -----------------------------------------------------------------------------
+# TRYB SINGLE
+# -----------------------------------------------------------------------------
+
+selected_eig = 3
+
+
+# -----------------------------------------------------------------------------
+# TRYB SUM
+# -----------------------------------------------------------------------------
+
+eig_min = 3
+eig_max = 17
+
+
+# =============================================================================
+# OŚ X
+# =============================================================================
+
+# "g"  -> heatmapa omega_0 vs g
+# "g2" -> heatmapa omega_0 vs g^2
+
+x_axis_mode = "g"
+
+
+# =============================================================================
+# LINIA NA HEATMAPIE
+# =============================================================================
+
+# True  -> wyświetl linię
+# False -> nie wyświetlaj linii
+
+show_line = True
+
+# Współczynniki dwóch linii trendu:
+#
+# dla x_axis_mode = "g":
+#
+#     omega_0 = a*g + b
+#
+# dla x_axis_mode = "g2":
+#
+#     omega_0 = a*g^2 + b
+
+show_line_1 = True
+line_a_1 = 1
+line_b_1 = -0.03
+
+show_line_2 = False
+line_a_2 = 0.33
+line_b_2 = 0.65
+
+
+# Zakres omega_0, dla którego linia ma być widoczna
+
+line_omega_min = 0.0
+line_omega_max = 2.0
+
+
+# Wygląd linii
+
+line_color = "red"
+line_width = 2.5
+line_style = "--"
+
+
+# =============================================================================
+# WYŚWIETLANIE / ZAPIS
+# =============================================================================
+
+show_plot = True
+save_plot = True
+
+dpi = 300
+
+
+# =============================================================================
+# ZAKRES KOLORÓW
+# =============================================================================
+
+# Jeżeli None -> zakres dobierany automatycznie
+vmin = None
+vmax = None
+
+
+# =============================================================================
+# MAPA KOLORÓW
+# =============================================================================
+
+cmap = "viridis"
+
+
+# =============================================================================
+# WCZYTANIE PARAMETRÓW Z NAZWY PLIKU
+# =============================================================================
+
+nazwa_pliku = filename.name
+
+wzorzec = (
+    r"grid_"
+    r"M(?P<M>\d+)_"
+    r"Jp(?P<Jp>[-+]?\d*\.?\d+)_"
+    r"d(?P<Delta>[-+]?\d*\.?\d+)_"
+    r"d2(?P<Delta2>[-+]?\d*\.?\d+)_"
+    r"T(?P<T>[^_]+)_"
+    r"P(?P<P>[^_]+)_"
+    r"F(?P<F>[^_]+)_"
+    r"B(?P<B>[^_]+)_"
+    r"FId(?P<FId>[^_]+)_"
+    r"eig(?P<eig>\d+)\.txt"
+)
+
+match = re.match(wzorzec, nazwa_pliku)
+
+if match is None:
+    raise ValueError(
+        "Nie udało się odczytać parametrów z nazwy pliku:\n"
+        f"{nazwa_pliku}"
+    )
+
+parametry = match.groupdict()
+
+M = int(parametry["M"])
+Jp = float(parametry["Jp"])
+Delta = float(parametry["Delta"])
+Delta2 = float(parametry["Delta2"])
+
+T = parametry["T"]
+P = parametry["P"]
+F = parametry["F"]
+B = parametry["B"]
+FId = parametry["FId"]
+
+
+# =============================================================================
+# FUNKCJA TWORZĄCA NAZWĘ PLIKU DLA WYBRANEGO EIG
+# =============================================================================
+
+def plik_dla_eig(eig):
+
+    nowa_nazwa = re.sub(
+        r"_eig\d+\.txt$",
+        f"_eig{eig}.txt",
+        filename.name
+    )
+
+    return filename.parent / nowa_nazwa
+
+
+# =============================================================================
+# FUNKCJA WCZYTUJĄCA DANE
+# =============================================================================
+
+def wczytaj_plik(sciezka):
+
+    if not sciezka.exists():
+        raise FileNotFoundError(
+            f"Nie znaleziono pliku:\n{sciezka}"
+        )
+
+    dane = np.loadtxt(sciezka)
+
+    omega = dane[:, 0]
+    g = dane[:, 1]
+    wartosci = dane[:, 2]
+
+    return g, omega, wartosci
+
+
+# =============================================================================
+# WCZYTANIE DANYCH
+# =============================================================================
+
+if mode == "single":
+
+    sciezka = plik_dla_eig(selected_eig)
+
+    print(f"Wczytuję eig = {selected_eig}")
+    print(sciezka)
+
+    g, omega, wartosci = wczytaj_plik(sciezka)
+
+    opis_eig = rf"$\lambda_{{{selected_eig}}}$"
+    opis_pliku = f"eig{selected_eig}"
+
+
+elif mode == "sum":
+
+    suma = None
+
+    g_ref = None
+    omega_ref = None
+
+    for eig in range(eig_min, eig_max + 1):
+
+        sciezka = plik_dla_eig(eig)
+
+        print(f"Wczytuję eig = {eig}")
+        print(sciezka)
+
+        g, omega, wartosci = wczytaj_plik(sciezka)
+
+        if suma is None:
+
+            suma = np.zeros_like(wartosci)
+
+            g_ref = g.copy()
+            omega_ref = omega.copy()
+
+        else:
+
+            if not np.allclose(g, g_ref):
+                raise ValueError(
+                    f"Siatka g w eig={eig} różni się od poprzednich."
+                )
+
+            if not np.allclose(omega, omega_ref):
+                raise ValueError(
+                    f"Siatka omega_0 w eig={eig} różni się od poprzednich."
+                )
+
+        suma += wartosci
+
+    g = g_ref
+    omega = omega_ref
+    wartosci = suma
+
+    opis_eig = (
+        rf"$\sum_{{k={eig_min}}}^{{{eig_max}}}\lambda_k$"
+    )
+
+    opis_pliku = f"sum_eig{eig_min}-{eig_max}"
+
+
+else:
+
+    raise ValueError(
+        'mode musi mieć wartość "single" albo "sum".'
+    )
+
+
+# =============================================================================
+# TWORZENIE SIATKI 2D
+# =============================================================================
+
+g_values = np.unique(g)
+omega_values = np.unique(omega)
+
+heatmap = np.full(
+    (len(omega_values), len(g_values)),
+    np.nan
+)
+
+
+for g_i, omega_i, value_i in zip(g, omega, wartosci):
+
+    indeks_g = np.where(
+        np.isclose(g_values, g_i)
+    )[0][0]
+
+    indeks_omega = np.where(
+        np.isclose(omega_values, omega_i)
+    )[0][0]
+
+    heatmap[indeks_omega, indeks_g] = value_i
+
+
+# =============================================================================
+# WYBÓR OSI X
+# =============================================================================
+
+if x_axis_mode == "g":
+
+    x_values = g_values
+    x_label = r"$g$"
+    opis_osi_pliku = "g_x"
+
+
+elif x_axis_mode == "g2":
+
+    x_values = g_values**2
+    x_label = r"$g^2$"
+    opis_osi_pliku = "g2_x"
+
+
+else:
+
+    raise ValueError(
+        'x_axis_mode musi mieć wartość "g" albo "g2".'
+    )
+
+
+# =============================================================================
+# TYTUŁ
+# =============================================================================
+
+title = (
+    rf"$M={M}$, "
+    rf"$J'={Jp}$, "
+    rf"$\Delta={Delta}$, "
+    rf"$\Delta_2={Delta2}$"
+    "\n"
+    rf"$T={T}$, "
+    rf"$P={P}$, "
+    rf"$F={F}$, "
+    rf"$B={B}$, "
+    rf"$FId={FId}$, "
+    f"{opis_eig}"
+)
+
+
+# =============================================================================
+# RYSOWANIE
+# =============================================================================
+
+fig, ax = plt.subplots(figsize=(8, 6))
+
+mesh = ax.pcolormesh(
+    x_values,
+    omega_values,
+    heatmap,
+    shading="auto",
+    cmap=cmap,
+    vmin=vmin,
+    vmax=vmax
+)
+
+cbar = fig.colorbar(mesh, ax=ax)
+
+
+# =============================================================================
+# LINIA RĘCZNA
+# =============================================================================
+
+if show_line:
+
+    x_line = np.linspace(
+        np.min(x_values),
+        np.max(x_values),
+        1000
+    )
+
+    def rysuj_linie(a, b, kolor, styl, numer):
+
+        omega_line = a * x_line + b
+
+        mask = (
+            (omega_line >= line_omega_min)
+            & (omega_line <= line_omega_max)
+        )
+
+        x_plot = x_line[mask]
+        omega_plot = omega_line[mask]
+
+        if x_axis_mode == "g":
+
+            line_label = (
+                rf"$\omega_0 = {a:g}g"
+                rf"{b:+g}$"
+            )
+
+        elif x_axis_mode == "g2":
+
+            line_label = (
+                rf"$\omega_0 = {a:g}g^2"
+                rf"{b:+g}$"
+            )
+
+        ax.plot(
+            x_plot,
+            omega_plot,
+            color=kolor,
+            linewidth=line_width,
+            linestyle=styl,
+            label=line_label
+        )
+
+
+    if show_line_1:
+        rysuj_linie(
+            line_a_1,
+            line_b_1,
+            "red",
+            "--",
+            1
+        )
+
+
+    if show_line_2:
+        rysuj_linie(
+            line_a_2,
+            line_b_2,
+            "blue",
+            "-.",
+            2
+        )
+
+
+    ax.legend(
+        fontsize=12,
+        loc="best"
+    )
+
+
+# =============================================================================
+# COLORBAR
+# =============================================================================
+
+if mode == "single":
+
+    cbar.set_label(
+        rf"$\lambda_{{{selected_eig}}}$",
+        fontsize=14
+    )
+
+else:
+
+    cbar.set_label(
+        rf"$\sum_{{k={eig_min}}}^{{{eig_max}}}\lambda_k$",
+        fontsize=14
+    )
+
+
+# =============================================================================
+# OSIE
+# =============================================================================
+
+ax.set_xlabel(
+    x_label,
+    fontsize=14
+)
+
+ax.set_ylabel(
+    r"$\omega_0$",
+    fontsize=14
+)
+
+ax.set_title(
+    title,
+    fontsize=14
+)
+
+ax.tick_params(
+    axis="both",
+    labelsize=12
+)
+
+plt.tight_layout()
+
+
+# =============================================================================
+# FOLDER ZAPISU
+# =============================================================================
+
+output_folder = Path(
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_4_20.08.2026"
+)
+
+output_folder.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+
+# =============================================================================
+# OPIS LINII TRENDU DO NAZWY PLIKU
+# =============================================================================
+
+if show_line:
+    opis_trendu = "trend_yes"
+else:
+    opis_trendu = "trend_no"
+
+# =============================================================================
+# ZAPIS
+# =============================================================================
+
+if save_plot:
+
+    output_filename = (
+        output_folder
+        / (
+            f"heatmap_{opis_osi_pliku}"
+            f"_M{M}"
+            f"_Jp{Jp}"
+            f"_d{Delta}"
+            f"_d2{Delta2}"
+            f"_T{T}"
+            f"_P{P}"
+            f"_F{F}"
+            f"_B{B}"
+            f"_FId{FId}"
+            f"_{opis_pliku}"
+            f"_{opis_trendu}.png"
+        )
+    )
+
+    plt.savefig(
+        output_filename,
+        dpi=dpi,
+        bbox_inches="tight"
+    )
+
+    print()
+    print("Zapisano wykres:")
+    print(output_filename)
+
+
+# =============================================================================
+# WYŚWIETLENIE
+# =============================================================================
+
+if show_plot:
+    plt.show()
+else:
+    plt.close()

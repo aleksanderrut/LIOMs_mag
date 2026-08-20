@@ -11,12 +11,13 @@ import numpy as np
 
 # Plik z rozpisanymi współczynnikami LIOM-u
 filename = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_3_16.08.2026\siatka_omega_g_liomsy\lioms_grid_M4_Jp0.25_d1.5_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\se_2_13.08.2026\siatka_omega_g_liomsy\lioms_grid_M3_Jp0.0_d1.5_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
 )
 
 # Numery elementów bazy, które chcemy narysować
 #wybrane_operatory = [3,8, 194, 7, 12, 202, 451]
-wybrane_operatory = [1,3,7,8,12,194,202]
+#wybrane_operatory = [3,7,8,12,50,62,118]
+wybrane_operatory = [3,7,8,12,50,53,62,113,118,166]
 
 show_plot = True
 save_plot = True
@@ -35,19 +36,27 @@ manual_legend_entries = [
     # M=3, FId=yes
     ###########################################################################
 
-    # (3, r"$\;S^-_{i,2}+S^+_{i,2}\quad$"),
+    (3, r"$\;S^-_{i,2}+S^+_{i,2}\quad$"),
 
-    # (4, r"$\;S^z_{i,2}S^z_{i+1,2}\quad$"),
+    (4, r"$\;S^z_{i,2}S^z_{i+1,2}\quad$"),
 
-    # (7, r"$\;i\left(S^+_{i,2}S^-_{i+1,2}"r"-S^-_{i,2}S^+_{i+1,2}\right)\quad$"),
+    (7, r"$\;i\left(S^+_{i,2}S^-_{i+1,2}"r"-S^-_{i,2}S^+_{i+1,2}\right)\quad$"),
 
-    # (8, r"$\;S^+_{i,2}S^-_{i+1,2}"r"+S^-_{i,2}S^+_{i+1,2}\quad$"),
+    (8, r"$\;S^+_{i,2}S^-_{i+1,2}"r"+S^-_{i,2}S^+_{i+1,2}\quad$"),
 
-    # (12, r"$\;S^-_{i,2}S^-_{i+1,2}"r"+S^+_{i,2}S^+_{i+1,2}\quad$"),
+    (12, r"$\;S^-_{i,2}S^-_{i+1,2}"r"+S^+_{i,2}S^+_{i+1,2}\quad$"),
 
-    # (50, r"$\;S^z_{i,1}S^z_{i,2}\quad$"),
+    (50, r"$\;S^z_{i,1}S^z_{i,2}\quad$"),
 
-    #(53, r"$\;S^z_{i,1}S^z_{i+1,2}\quad$"),
+    (53, r"$\;S^z_{i,1}S^z_{i+1,2}\quad$"),
+
+    (62, r"$\;S^z_{i,1}S^z_{i,2}\left(S^-_{i+1,2}+S^+_{i+1,2}\right)\quad$"),
+
+    (113, r"$\;S^z_{i+1,1}S^z_{i,2}\quad$"),
+
+    (118, r"$\;S^z_{i+1,1}S^z_{i+1,2}\left(S^-_{i,2}+S^+_{i,2}\right)\quad$"),
+
+    (166, r"$\;S^z_{i,1}S^z_{i+1,1}S^z_{i,2}S^z_{i+1,2}\quad$"),
 
     ###########################################################################
     # M=3, FId=no
@@ -79,50 +88,50 @@ manual_legend_entries = [
     # M=4, FId=yes
     ###########################################################################
 
-    (3, r"$\;S^-_{i,2}+S^+_{i,2}\quad$"),
+    # (3, r"$\;S^-_{i,2}+S^+_{i,2}\quad$"),
 
-    (8, r"$\;S^+_{i,2}S^-_{i+1,2}"
-    r"+S^-_{i,2}S^+_{i+1,2}\quad$"),
+    # (8, r"$\;S^+_{i,2}S^-_{i+1,2}"
+    # r"+S^-_{i,2}S^+_{i+1,2}\quad$"),
 
-    (194, r"$\;S^z_{i,1}S^z_{i,2}\quad$"),
+    # (194, r"$\;S^z_{i,1}S^z_{i,2}\quad$"),
 
-    (7, r"$\;i\left("
-    r"S^+_{i,2}S^-_{i+1,2}"
-    r"-S^-_{i,2}S^+_{i+1,2}"
-    r"\right)\quad$"),
+    # (7, r"$\;i\left("
+    # r"S^+_{i,2}S^-_{i+1,2}"
+    # r"-S^-_{i,2}S^+_{i+1,2}"
+    # r"\right)\quad$"),
 
-    (12, r"$\;S^-_{i,2}S^-_{i+1,2}"
-     r"+S^+_{i,2}S^+_{i+1,2}\quad$"),
+    # (12, r"$\;S^-_{i,2}S^-_{i+1,2}"
+    #  r"+S^+_{i,2}S^+_{i+1,2}\quad$"),
 
-    (206, r"$\;S^z_{i,1}S^z_{i,2}\left("
-      r"S^-_{i+1,2}+S^+_{i+1,2}"
-      r"\right)\quad$"),
+    # (206, r"$\;S^z_{i,1}S^z_{i,2}\left("
+    #   r"S^-_{i+1,2}+S^+_{i+1,2}"
+    #   r"\right)\quad$"),
 
-    (454, r"$\;S^z_{i+1,1}\left("
-      r"S^-_{i,2}+S^+_{i,2}"
-      r"\right)S^z_{i+1,2}\quad$"),
+    # (454, r"$\;S^z_{i+1,1}\left("
+    #   r"S^-_{i,2}+S^+_{i,2}"
+    #   r"\right)S^z_{i+1,2}\quad$"),
 
-    (641, r"$\;S^z_{i,1}S^z_{i+1,1}\quad$"),
+    # (641, r"$\;S^z_{i,1}S^z_{i+1,1}\quad$"),
 
-    (202, r"$\;S^z_{i,1}\left("
-      r"S^-_{i+1,2}+S^+_{i+1,2}"
-      r"\right)\quad$"),
+    # (202, r"$\;S^z_{i,1}\left("
+    #   r"S^-_{i+1,2}+S^+_{i+1,2}"
+    #   r"\right)\quad$"),
 
-    (451, r"$\;S^z_{i+1,1}\left("
-      r"S^-_{i,2}+S^+_{i,2}"
-      r"\right)\quad$"),
+    # (451, r"$\;S^z_{i+1,1}\left("
+    #   r"S^-_{i,2}+S^+_{i,2}"
+    #   r"\right)\quad$"),
 
-    (1153, r"$\;S^+_{i,1}S^-_{i+1,1}"
-       r"+S^-_{i,1}S^+_{i+1,1}\quad$"),
+    # (1153, r"$\;S^+_{i,1}S^-_{i+1,1}"
+    #    r"+S^-_{i,1}S^+_{i+1,1}\quad$"),
 
-    (1164, r"$\;\left("
-       r"S^+_{i,1}S^-_{i+1,1}"
-       r"+S^-_{i,1}S^+_{i+1,1}"
-       r"\right)"
-       r"\left("
-       r"S^+_{i,2}S^-_{i+1,2}"
-       r"+S^-_{i,2}S^+_{i+1,2}"
-       r"\right)\quad$"),
+    # (1164, r"$\;\left("
+    #    r"S^+_{i,1}S^-_{i+1,1}"
+    #    r"+S^-_{i,1}S^+_{i+1,1}"
+    #    r"\right)"
+    #    r"\left("
+    #    r"S^+_{i,2}S^-_{i+1,2}"
+    #    r"+S^-_{i,2}S^+_{i+1,2}"
+    #    r"\right)\quad$"),
 
     ##########################################################################
     # M=4, FId=no
@@ -222,7 +231,7 @@ plot_title_fontsize = 16
 dpi = 300
 
 output_directory = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\M=4"
+    r"C:\Users\aleks\Desktop\praca magisterska\M=3"
 )
 
 
