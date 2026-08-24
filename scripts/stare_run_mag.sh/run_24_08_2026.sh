@@ -64,7 +64,7 @@ echo "================================================================="
 
 echo
 echo "================================================================="
-echo "GRID: M=3, d=0.001, d2=0.0, grid=70x70, eig=1:40"
+echo "GRID: M=3, d=0.001, d2=0.0, grid=80x80, eig=1:40"
 echo "omega: 0 -> 2"
 echo "g:     0 -> 2"
 echo "Liczba punktow: 4900"
@@ -94,7 +94,7 @@ julia -t "$THREADS" --project=. lioms_phonon_siatka_w_g.jl \
 
 echo
 echo "================================================================="
-echo "GRID 70x70 zakonczony"
+echo "GRID 80x80 zakonczony"
 echo "Czas zakonczenia: $(date)"
 echo "================================================================="
 
