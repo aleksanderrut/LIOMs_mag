@@ -67,7 +67,7 @@ echo "================================================================="
 echo "GRID: M=3, d=0.001, d2=0.0, grid=80x80, eig=1:40"
 echo "omega: 0 -> 2"
 echo "g:     0 -> 2"
-echo "Liczba punktow: 4900"
+echo "Liczba punktow: 6400"
 echo "Czas rozpoczecia: $(date)"
 echo "================================================================="
 

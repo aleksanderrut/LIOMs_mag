@@ -12,7 +12,7 @@ import numpy as np
 # Dowolny plik z tej samej serii.
 # Numer eig w tej ścieżce zostanie automatycznie podmieniony.
 filename = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_4_20.08.2026\siatka_omega_g\grid_M3_Jp0.0_d0.8_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_6_25.08.2026\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
 )
 
 
@@ -38,7 +38,7 @@ selected_eig = 3
 # -----------------------------------------------------------------------------
 
 eig_min = 3
-eig_max = 17
+eig_max = 19
 
 
 # =============================================================================
@@ -58,7 +58,7 @@ x_axis_mode = "g"
 # True  -> wyświetl linię
 # False -> nie wyświetlaj linii
 
-show_line = True
+show_line = False
 
 # Współczynniki dwóch linii trendu:
 #
@@ -72,11 +72,11 @@ show_line = True
 
 show_line_1 = True
 line_a_1 = 1
-line_b_1 = -0.03
+line_b_1 = 0.03
 
-show_line_2 = False
-line_a_2 = 0.33
-line_b_2 = 0.65
+show_line_2 = True
+line_a_2 = 0.025
+line_b_2 = 0.7
 
 
 # Zakres omega_0, dla którego linia ma być widoczna
@@ -116,7 +116,6 @@ vmax = None
 # =============================================================================
 
 cmap = "viridis"
-
 
 # =============================================================================
 # WCZYTANIE PARAMETRÓW Z NAZWY PLIKU
@@ -481,7 +480,7 @@ plt.tight_layout()
 # =============================================================================
 
 output_folder = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_4_20.08.2026"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_6_25.08.2026"
 )
 
 output_folder.mkdir(
