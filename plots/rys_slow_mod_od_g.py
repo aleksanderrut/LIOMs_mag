@@ -54,8 +54,8 @@ plot_mode = "fixed_omega"
 #
 # =============================================================================
 
-omega_fixed = 0.5063291139240507
-g_fixed = 0.5
+omega_fixed = 1.4936708860759493
+g_fixed = 0.5063291139240507
 
 
 # =============================================================================
@@ -79,7 +79,15 @@ value_tolerance = 1e-10
 #wybrane_operatory = [3,7,8,12,50,53,62,113,118,166]
 #wybrane_operatory = [1,3,4,8,12,20,34,50,181,289]
 
-wybrane_operatory = [3,4,7,8,12,50,292,298,1121]
+#wybrane_operatory = [3,4,7,8,12,50,292,298,1121]
+
+#wybrane_operatory = [3,4,8,50,62,118,289,300]
+#wybrane_operatory = [3,4,8,50,62,118,289,292,298,300]
+#wybrane_operatory = [4,5,8,12,119,230,289,292,298,300]
+
+#wybrane_operatory = [4,8,62,118,289,300]
+#wybrane_operatory = [4,8,62,118,292,293,298,1121]
+wybrane_operatory = [3,4,7,8,50,61,117,62,118,289,300]
 
 
 # =============================================================================
@@ -111,6 +119,8 @@ manual_legend_entries = [
 
     (4, r"$\;S^z_{i,2}S^z_{i+1,2}\quad$"),
 
+    (5, r"$\;i\left(S^-_{i,2}S^z_{i+1,2}-S^+_{i,2}S^z_{i+1,2}\right)\quad$"),
+
     (7, r"$\;i\left(S^+_{i,2}S^-_{i+1,2}"
         r"-S^-_{i,2}S^+_{i+1,2}\right)\quad$"),
 
@@ -125,6 +135,8 @@ manual_legend_entries = [
     (20, r"$\;S^+_{i,2}S^z_{i+1,2}S^-_{i+2,2}"
          r"+S^-_{i,2}S^z_{i+1,2}S^+_{i+2,2}\quad$"),
 
+    (26, r"$\;S^+_{i,2}S^-_{i+2,2}+S^-_{i,2}S^+_{i+2,2}\quad$"),
+
     (32, r"$\;S^+_{i,2}S^+_{i+1,2}S^-_{i+2,2}"
          r"+S^-_{i,2}S^-_{i+1,2}S^+_{i+2,2}\quad$"),
 
@@ -132,13 +144,20 @@ manual_legend_entries = [
 
     (53, r"$\;S^z_{i,1}S^z_{i+1,2}\quad$"),
 
+    (61, r"$\;iS^z_{i,1}S^z_{i,2}"
+      r"\left(S^-_{i+1,2}-S^+_{i+1,2}\right)\quad$"),
+
     (62, r"$\;S^z_{i,1}S^z_{i,2}"
          r"\left(S^-_{i+1,2}+S^+_{i+1,2}\right)\quad$"),
 
     (113, r"$\;S^z_{i+1,1}S^z_{i,2}\quad$"),
 
+    (117, r"$\;iS^z_{i+1,1}\left(S^-_{i,2}S^z_{i+1,2}-S^+_{i,2}S^z_{i+1,2}\right)\quad$"),
+
     (118, r"$\;S^z_{i+1,1}S^z_{i+1,2}"
           r"\left(S^-_{i,2}+S^+_{i,2}\right)\quad$"),
+
+    (119, r"$\;iS^z_{i+1,1}\left(S^+_{i,2}S^-_{i+1,2}-S^-_{i,2}S^+_{i+1,2}\right)\quad$"),
 
     (166, r"$\;S^z_{i,1}S^z_{i+1,1}"
           r"S^z_{i,2}S^z_{i+1,2}\quad$"),
@@ -146,14 +165,25 @@ manual_legend_entries = [
     (181, r"$\;S^z_{i,1}S^z_{i+1,1}"
           r"S^z_{i+1,2}S^z_{i+2,2}\quad$"),
 
+    (225, r"$\;i\left(S^+_{i,1}S^-_{i+1,1}-S^-_{i,1}S^+_{i+1,1}\right)\quad$"),
+
+    (230, r"$\;i\left(S^+_{i,1}S^-_{i+1,1}-S^-_{i,1}S^+_{i+1,1}\right)"
+       r"S^z_{i,2}S^z_{i+1,2}\quad$"),
+
     (289, r"$\;S^+_{i,1}S^-_{i+1,1}"
           r"+S^-_{i,1}S^+_{i+1,1}\quad$"),
 
     (292, r"$\;\left(S^+_{i,1}S^-_{i+1,1}+S^-_{i,1}S^+_{i+1,1}\right)"
       r"\left(S^-_{i,2}+S^+_{i,2}\right)\quad$"),
 
+    (293, r"$\;\left(S^+_{i,1}S^-_{i+1,1}+S^-_{i,1}S^+_{i+1,1}\right)"
+       r"S^z_{i+1,2}\quad$"),
+
     (298, r"$\;\left(S^+_{i,1}S^-_{i+1,1}+S^-_{i,1}S^+_{i+1,1}\right)"
       r"\left(S^-_{i+1,2}+S^+_{i+1,2}\right)\quad$"),
+
+    (300, r"$\;\left(S^+_{i,1}S^-_{i+1,1}+S^-_{i,1}S^+_{i+1,1}\right)"
+      r"\left(S^+_{i,2}S^-_{i+1,2}+S^-_{i,2}S^+_{i+1,2}\right)\quad$"),
 
     (1121, r"$\;S^+_{i,1}S^z_{i+1,1}S^-_{i+2,1}"
        r"+S^-_{i,1}S^z_{i+1,1}S^+_{i+2,1}\quad$"),
@@ -1007,27 +1037,89 @@ if show_manual_legend:
 
 
     # =========================================================================
-    # PODZIAŁ OPISU NA DWIE LINIE
+    # PODZIAŁ OPISU NA TRZY LINIE
+    # =========================================================================
+    #
+    # Nie dzielimy po prostu według liczby operatorów,
+    # ponieważ niektóre wzory są znacznie dłuższe od innych.
+    #
+    # Skrypt stara się uzyskać trzy linie o podobnej
+    # całkowitej długości tekstu.
+    #
     # =========================================================================
 
-    podzial = (
-        len(aktywne_opisy) + 1
-    ) // 2
+    liczba_linii = 3
 
-
-    linia_1 = "     ".join(
-        aktywne_opisy[:podzial]
+    dlugosc_calosci = sum(
+        len(opis)
+        for opis in aktywne_opisy
     )
 
-    linia_2 = "     ".join(
-        aktywne_opisy[podzial:]
+    docelowa_dlugosc = (
+        dlugosc_calosci
+        / liczba_linii
     )
 
 
-    tekst_operatorow = (
-        linia_1
-        + "\n"
-        + linia_2
+    linie = [
+        []
+        for _ in range(liczba_linii)
+    ]
+
+    aktualna_linia = 0
+    aktualna_dlugosc = 0
+
+
+    for opis in aktywne_opisy:
+
+        # ---------------------------------------------------------------------
+        # Jeżeli obecna linia jest już dostatecznie długa,
+        # przechodzimy do następnej.
+        #
+        # Zostawiamy możliwość dopisywania do trzeciej linii
+        # aż do końca.
+        # ---------------------------------------------------------------------
+
+        if (
+            aktualna_linia < liczba_linii - 1
+            and aktualna_dlugosc > 0
+            and aktualna_dlugosc + len(opis) > docelowa_dlugosc
+        ):
+
+            aktualna_linia += 1
+            aktualna_dlugosc = 0
+
+
+        linie[
+            aktualna_linia
+        ].append(
+            opis
+        )
+
+        aktualna_dlugosc += len(
+            opis
+        )
+
+
+    # =========================================================================
+    # ŁĄCZENIE OPISÓW W KAŻDEJ LINII
+    # =========================================================================
+
+    gotowe_linie = []
+
+    for linia in linie:
+
+        if linia:
+
+            gotowe_linie.append(
+                "     ".join(
+                    linia
+                )
+            )
+
+
+    tekst_operatorow = "\n".join(
+        gotowe_linie
     )
 
 
@@ -1037,7 +1129,7 @@ if show_manual_legend:
 
     fig.text(
         0.5,
-        0.025,
+        0.018,
         tekst_operatorow,
 
         fontsize=manual_legend_fontsize,
@@ -1045,6 +1137,8 @@ if show_manual_legend:
         horizontalalignment="center",
         verticalalignment="bottom",
         multialignment="center",
+
+        linespacing=1.5,
 
         bbox=dict(
             boxstyle="round,pad=0.8",
@@ -1054,6 +1148,15 @@ if show_manual_legend:
             alpha=1.0
         )
     )
+
+
+# =============================================================================
+# MIEJSCE NA RAMKĘ POD WYKRESEM
+# =============================================================================
+
+plt.subplots_adjust(
+    bottom=0.34
+)
 
 
 # =============================================================================

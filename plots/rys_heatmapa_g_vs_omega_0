@@ -12,7 +12,7 @@ import numpy as np
 # Dowolny plik z tej samej serii.
 # Numer eig w tej ścieżce zostanie automatycznie podmieniony.
 filename = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_6_25.08.2026\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_6_25.08.2026\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig4.txt"
 )
 
 
@@ -30,7 +30,7 @@ mode = "single"
 # TRYB SINGLE
 # -----------------------------------------------------------------------------
 
-selected_eig = 3
+selected_eig = 5
 
 
 # -----------------------------------------------------------------------------
@@ -38,7 +38,7 @@ selected_eig = 3
 # -----------------------------------------------------------------------------
 
 eig_min = 3
-eig_max = 19
+eig_max = 20
 
 
 # =============================================================================
@@ -52,44 +52,43 @@ x_axis_mode = "g"
 
 
 # =============================================================================
-# LINIA NA HEATMAPIE
+# LINIE STAŁE NA HEATMAPIE
 # =============================================================================
 
-# True  -> wyświetl linię
-# False -> nie wyświetlaj linii
+# True  -> wyświetl linie
+# False -> nie wyświetlaj żadnych linii
 
-show_line = False
-
-# Współczynniki dwóch linii trendu:
-#
-# dla x_axis_mode = "g":
-#
-#     omega_0 = a*g + b
-#
-# dla x_axis_mode = "g2":
-#
-#     omega_0 = a*g^2 + b
-
-show_line_1 = True
-line_a_1 = 1
-line_b_1 = 0.03
-
-show_line_2 = True
-line_a_2 = 0.025
-line_b_2 = 0.7
+show_constant_lines = True
 
 
-# Zakres omega_0, dla którego linia ma być widoczna
+# -----------------------------------------------------------------------------
+# POZIOME LINIE: omega_0 = const
+# -----------------------------------------------------------------------------
 
-line_omega_min = 0.0
-line_omega_max = 2.0
+show_omega_line_1 = True
+omega_line_1 = 0.506
+
+show_omega_line_2 = True
+omega_line_2 = 1.49
 
 
-# Wygląd linii
+# -----------------------------------------------------------------------------
+# PIONOWE LINIE: g = const
+# -----------------------------------------------------------------------------
 
-line_color = "red"
-line_width = 2.5
-line_style = "--"
+show_g_line_1 = True
+g_line_1 = 0.506
+
+show_g_line_2 = True
+g_line_2 = 1.11
+
+
+# -----------------------------------------------------------------------------
+# WYGLĄD LINII
+# -----------------------------------------------------------------------------
+
+constant_line_width = 2.5
+constant_line_style = "--"
 
 
 # =============================================================================
@@ -107,6 +106,7 @@ dpi = 300
 # =============================================================================
 
 # Jeżeli None -> zakres dobierany automatycznie
+
 vmin = None
 vmax = None
 
@@ -116,6 +116,7 @@ vmax = None
 # =============================================================================
 
 cmap = "viridis"
+
 
 # =============================================================================
 # WCZYTANIE PARAMETRÓW Z NAZWY PLIKU
@@ -137,20 +138,36 @@ wzorzec = (
     r"eig(?P<eig>\d+)\.txt"
 )
 
-match = re.match(wzorzec, nazwa_pliku)
+match = re.match(
+    wzorzec,
+    nazwa_pliku
+)
 
 if match is None:
+
     raise ValueError(
         "Nie udało się odczytać parametrów z nazwy pliku:\n"
         f"{nazwa_pliku}"
     )
 
+
 parametry = match.groupdict()
 
-M = int(parametry["M"])
-Jp = float(parametry["Jp"])
-Delta = float(parametry["Delta"])
-Delta2 = float(parametry["Delta2"])
+M = int(
+    parametry["M"]
+)
+
+Jp = float(
+    parametry["Jp"]
+)
+
+Delta = float(
+    parametry["Delta"]
+)
+
+Delta2 = float(
+    parametry["Delta2"]
+)
 
 T = parametry["T"]
 P = parametry["P"]
@@ -163,7 +180,9 @@ FId = parametry["FId"]
 # FUNKCJA TWORZĄCA NAZWĘ PLIKU DLA WYBRANEGO EIG
 # =============================================================================
 
-def plik_dla_eig(eig):
+def plik_dla_eig(
+    eig
+):
 
     nowa_nazwa = re.sub(
         r"_eig\d+\.txt$",
@@ -171,27 +190,44 @@ def plik_dla_eig(eig):
         filename.name
     )
 
-    return filename.parent / nowa_nazwa
+    return (
+        filename.parent
+        / nowa_nazwa
+    )
 
 
 # =============================================================================
 # FUNKCJA WCZYTUJĄCA DANE
 # =============================================================================
 
-def wczytaj_plik(sciezka):
+def wczytaj_plik(
+    sciezka
+):
 
     if not sciezka.exists():
+
         raise FileNotFoundError(
             f"Nie znaleziono pliku:\n{sciezka}"
         )
 
-    dane = np.loadtxt(sciezka)
+
+    dane = np.loadtxt(
+        sciezka
+    )
+
 
     omega = dane[:, 0]
+
     g = dane[:, 1]
+
     wartosci = dane[:, 2]
 
-    return g, omega, wartosci
+
+    return (
+        g,
+        omega,
+        wartosci
+    )
 
 
 # =============================================================================
@@ -200,15 +236,31 @@ def wczytaj_plik(sciezka):
 
 if mode == "single":
 
-    sciezka = plik_dla_eig(selected_eig)
+    sciezka = plik_dla_eig(
+        selected_eig
+    )
 
-    print(f"Wczytuję eig = {selected_eig}")
-    print(sciezka)
+    print(
+        f"Wczytuję eig = {selected_eig}"
+    )
 
-    g, omega, wartosci = wczytaj_plik(sciezka)
+    print(
+        sciezka
+    )
 
-    opis_eig = rf"$\lambda_{{{selected_eig}}}$"
-    opis_pliku = f"eig{selected_eig}"
+
+    g, omega, wartosci = wczytaj_plik(
+        sciezka
+    )
+
+
+    opis_eig = (
+        rf"$\lambda_{{{selected_eig}}}$"
+    )
+
+    opis_pliku = (
+        f"eig{selected_eig}"
+    )
 
 
 elif mode == "sum":
@@ -216,47 +268,85 @@ elif mode == "sum":
     suma = None
 
     g_ref = None
+
     omega_ref = None
 
-    for eig in range(eig_min, eig_max + 1):
 
-        sciezka = plik_dla_eig(eig)
+    for eig in range(
+        eig_min,
+        eig_max + 1
+    ):
 
-        print(f"Wczytuję eig = {eig}")
-        print(sciezka)
+        sciezka = plik_dla_eig(
+            eig
+        )
 
-        g, omega, wartosci = wczytaj_plik(sciezka)
+        print(
+            f"Wczytuję eig = {eig}"
+        )
+
+        print(
+            sciezka
+        )
+
+
+        g, omega, wartosci = wczytaj_plik(
+            sciezka
+        )
+
 
         if suma is None:
 
-            suma = np.zeros_like(wartosci)
+            suma = np.zeros_like(
+                wartosci
+            )
 
             g_ref = g.copy()
+
             omega_ref = omega.copy()
+
 
         else:
 
-            if not np.allclose(g, g_ref):
+            if not np.allclose(
+                g,
+                g_ref
+            ):
+
                 raise ValueError(
-                    f"Siatka g w eig={eig} różni się od poprzednich."
+                    f"Siatka g w eig={eig} "
+                    f"różni się od poprzednich."
                 )
 
-            if not np.allclose(omega, omega_ref):
+
+            if not np.allclose(
+                omega,
+                omega_ref
+            ):
+
                 raise ValueError(
-                    f"Siatka omega_0 w eig={eig} różni się od poprzednich."
+                    f"Siatka omega_0 w eig={eig} "
+                    f"różni się od poprzednich."
                 )
+
 
         suma += wartosci
 
+
     g = g_ref
+
     omega = omega_ref
+
     wartosci = suma
+
 
     opis_eig = (
         rf"$\sum_{{k={eig_min}}}^{{{eig_max}}}\lambda_k$"
     )
 
-    opis_pliku = f"sum_eig{eig_min}-{eig_max}"
+    opis_pliku = (
+        f"sum_eig{eig_min}-{eig_max}"
+    )
 
 
 else:
@@ -270,26 +360,50 @@ else:
 # TWORZENIE SIATKI 2D
 # =============================================================================
 
-g_values = np.unique(g)
-omega_values = np.unique(omega)
+g_values = np.unique(
+    g
+)
+
+omega_values = np.unique(
+    omega
+)
+
 
 heatmap = np.full(
-    (len(omega_values), len(g_values)),
+    (
+        len(omega_values),
+        len(g_values)
+    ),
     np.nan
 )
 
 
-for g_i, omega_i, value_i in zip(g, omega, wartosci):
+for g_i, omega_i, value_i in zip(
+    g,
+    omega,
+    wartosci
+):
 
     indeks_g = np.where(
-        np.isclose(g_values, g_i)
+        np.isclose(
+            g_values,
+            g_i
+        )
     )[0][0]
+
 
     indeks_omega = np.where(
-        np.isclose(omega_values, omega_i)
+        np.isclose(
+            omega_values,
+            omega_i
+        )
     )[0][0]
 
-    heatmap[indeks_omega, indeks_g] = value_i
+
+    heatmap[
+        indeks_omega,
+        indeks_g
+    ] = value_i
 
 
 # =============================================================================
@@ -299,14 +413,20 @@ for g_i, omega_i, value_i in zip(g, omega, wartosci):
 if x_axis_mode == "g":
 
     x_values = g_values
+
     x_label = r"$g$"
+
     opis_osi_pliku = "g_x"
 
 
 elif x_axis_mode == "g2":
 
-    x_values = g_values**2
+    x_values = (
+        g_values**2
+    )
+
     x_label = r"$g^2$"
+
     opis_osi_pliku = "g2_x"
 
 
@@ -340,88 +460,150 @@ title = (
 # RYSOWANIE
 # =============================================================================
 
-fig, ax = plt.subplots(figsize=(8, 6))
+fig, ax = plt.subplots(
+    figsize=(8, 6)
+)
+
 
 mesh = ax.pcolormesh(
     x_values,
     omega_values,
     heatmap,
+
     shading="auto",
+
     cmap=cmap,
+
     vmin=vmin,
     vmax=vmax
 )
 
-cbar = fig.colorbar(mesh, ax=ax)
+
+cbar = fig.colorbar(
+    mesh,
+    ax=ax
+)
 
 
 # =============================================================================
-# LINIA RĘCZNA
+# LINIE STAŁE
 # =============================================================================
 
-if show_line:
+if show_constant_lines:
 
-    x_line = np.linspace(
-        np.min(x_values),
-        np.max(x_values),
-        1000
-    )
+    # =========================================================================
+    # POZIOMA LINIA 1: omega_0 = const
+    # =========================================================================
 
-    def rysuj_linie(a, b, kolor, styl, numer):
+    if show_omega_line_1:
 
-        omega_line = a * x_line + b
+        ax.axhline(
+            y=omega_line_1,
 
-        mask = (
-            (omega_line >= line_omega_min)
-            & (omega_line <= line_omega_max)
+            color="red",
+
+            linewidth=constant_line_width,
+
+            linestyle=constant_line_style,
+
+            label=rf"$\omega_0 = {omega_line_1:.3g}$"
         )
 
-        x_plot = x_line[mask]
-        omega_plot = omega_line[mask]
+
+    # =========================================================================
+    # POZIOMA LINIA 2: omega_0 = const
+    # =========================================================================
+
+    if show_omega_line_2:
+
+        ax.axhline(
+            y=omega_line_2,
+
+            color="orange",
+
+            linewidth=constant_line_width,
+
+            linestyle=constant_line_style,
+
+            label=rf"$\omega_0 = {omega_line_2:.3g}$"
+        )
+
+
+    # =========================================================================
+    # PIONOWA LINIA 1: g = const
+    # =========================================================================
+    #
+    # Jeśli oś X = g:
+    #
+    #     x = g
+    #
+    # Jeśli oś X = g^2:
+    #
+    #     x = g^2
+    #
+    # =========================================================================
+
+    if show_g_line_1:
 
         if x_axis_mode == "g":
 
-            line_label = (
-                rf"$\omega_0 = {a:g}g"
-                rf"{b:+g}$"
-            )
+            x_g_1 = g_line_1
+
 
         elif x_axis_mode == "g2":
 
-            line_label = (
-                rf"$\omega_0 = {a:g}g^2"
-                rf"{b:+g}$"
+            x_g_1 = (
+                g_line_1**2
             )
 
-        ax.plot(
-            x_plot,
-            omega_plot,
-            color=kolor,
-            linewidth=line_width,
-            linestyle=styl,
-            label=line_label
+
+        ax.axvline(
+            x=x_g_1,
+
+            color="cyan",
+
+            linewidth=constant_line_width,
+
+            linestyle=constant_line_style,
+
+            label=rf"$g = {g_line_1:.3g}$"
         )
 
 
-    if show_line_1:
-        rysuj_linie(
-            line_a_1,
-            line_b_1,
-            "red",
-            "--",
-            1
+    # =========================================================================
+    # PIONOWA LINIA 2: g = const
+    # =========================================================================
+
+    if show_g_line_2:
+
+        if x_axis_mode == "g":
+
+            x_g_2 = g_line_2
+
+
+        elif x_axis_mode == "g2":
+
+            x_g_2 = (
+                g_line_2**2
+            )
+
+
+        ax.axvline(
+            x=x_g_2,
+
+            color="white",
+
+            linewidth=constant_line_width,
+
+            linestyle=constant_line_style,
+
+            label=rf"$g = {g_line_2:.3g}$"
         )
 
 
-    if show_line_2:
-        rysuj_linie(
-            line_a_2,
-            line_b_2,
-            "blue",
-            "-.",
-            2
-        )
-
+    # =========================================================================
+    # LEGENDA LINII
+    # =========================================================================
 
     ax.legend(
         fontsize=12,
@@ -440,6 +622,7 @@ if mode == "single":
         fontsize=14
     )
 
+
 else:
 
     cbar.set_label(
@@ -457,20 +640,24 @@ ax.set_xlabel(
     fontsize=14
 )
 
+
 ax.set_ylabel(
     r"$\omega_0$",
     fontsize=14
 )
+
 
 ax.set_title(
     title,
     fontsize=14
 )
 
+
 ax.tick_params(
     axis="both",
     labelsize=12
 )
+
 
 plt.tight_layout()
 
@@ -483,6 +670,7 @@ output_folder = Path(
     r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_6_25.08.2026"
 )
 
+
 output_folder.mkdir(
     parents=True,
     exist_ok=True
@@ -490,13 +678,17 @@ output_folder.mkdir(
 
 
 # =============================================================================
-# OPIS LINII TRENDU DO NAZWY PLIKU
+# OPIS LINII DO NAZWY PLIKU
 # =============================================================================
 
-if show_line:
-    opis_trendu = "trend_yes"
+if show_constant_lines:
+
+    opis_linii = "const_lines_yes"
+
 else:
-    opis_trendu = "trend_no"
+
+    opis_linii = "const_lines_no"
+
 
 # =============================================================================
 # ZAPIS
@@ -518,9 +710,10 @@ if save_plot:
             f"_B{B}"
             f"_FId{FId}"
             f"_{opis_pliku}"
-            f"_{opis_trendu}.png"
+            f"_{opis_linii}.png"
         )
     )
+
 
     plt.savefig(
         output_filename,
@@ -528,9 +721,16 @@ if save_plot:
         bbox_inches="tight"
     )
 
+
     print()
-    print("Zapisano wykres:")
-    print(output_filename)
+
+    print(
+        "Zapisano wykres:"
+    )
+
+    print(
+        output_filename
+    )
 
 
 # =============================================================================
@@ -538,6 +738,9 @@ if save_plot:
 # =============================================================================
 
 if show_plot:
+
     plt.show()
+
 else:
+
     plt.close()
