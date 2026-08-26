@@ -12,7 +12,7 @@ import numpy as np
 # Dowolny plik z tej samej serii.
 # Numer eig w tej ścieżce zostanie automatycznie podmieniony.
 filename = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_6_25.08.2026\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig4.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_6_25.08.2026\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
 )
 
 
