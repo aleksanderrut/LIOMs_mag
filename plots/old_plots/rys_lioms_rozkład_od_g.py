@@ -1,29 +1,29 @@
 from dataclasses import dataclass
 from pathlib import Path
 import re
-
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LogNorm, Normalize
 
-
 # =============================================================================
 # USTAWIENIA
-# =============================================================================
 
-input_filename = Path(r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\se_2_13.08.2026\siatka_omega_g_liomsy\lioms_grid_M3_Jp0.0_d0.8_Tboth_Pboth_Fyes_Bboth_FIdno_eig3.txt")
+input_filename = Path(
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_7_03.09.2026\siatka_omega_g_liomsy\lioms_grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+)
 
-output_directory = Path(r"C:\Users\aleks\Desktop\praca magisterska\M=3")
+output_directory = Path(
+    r"C:\Users\aleks\Desktop\praca magisterska\spotkanie_05.10.2026"
+)
 
-save_plot = False
+save_plot = True
 show_plot = True
 
-# "g" -> y = g
-# "omega" -> y = omega_0
+# "g"     -> oś Y = g, ustalone omega_0
+# "omega" -> oś Y = omega_0, ustalone g
 y_axis_parameter = "g"
-fixed_parameter_value = None
+fixed_parameter_value = 0.6206896551724138
 
-# Zakresy osi X:
 # None -> cała baza
 # Można podać kilka rozłącznych zakresów, np. [(1, 100), (200, 300)]
 x_ranges = [(1, 1000)]
@@ -36,8 +36,6 @@ basis_size = None
 
 # Skala kolorów
 use_log_values = False
-
-# Stały zakres skali kolorów
 color_min, color_max = 0.0, 1.0
 
 # Wartości poniżej progu będą białe
@@ -55,76 +53,15 @@ plot_title_fontsize = 16
 dpi = 300
 
 manual_legend_entries = [
-    #(1,  r"RR$\;1_{i}1_{i+1}\;|\;S^{z}_{i}1_{i+1}\quad$"),
-    #(3,  r"RR$\;1_{i}1_{i+1}\;|\;S^{-}_{i}1_{i+1}\quad$"),
-    #(4,  r"RR$\;1_{i}1_{i+1}\;|\;S^{z}_{i}S^{z}_{i+1}\quad$"),
-    #(7,  r"RI$\;1_{i}1_{i+1}\;|\;S^{+}_{i}S^{-}_{i+1}\quad$"),
-    #(8,  r"RR$\;1_{i}1_{i+1}\;|\;S^{+}_{i}S^{-}_{i+1}\quad$"),
-    #(12, r"RR$\;S_{i}1_{i+1}\;|\;S^{-}_{i}S^{-}_{i+1}\quad$"),
-    #(14, r"RR$\;S^{z}_{i}1_{i+1}\;|\;S^{z}_{i}1_{i+1}\quad$"),
-    #(41, r"RR$\;S^{z}_{i}S^{z}_{i+1}\;|\;1^{z}_{i}1^{z}_{i+1}\quad$"),
-    #(46, r"RR$\;S^{z}_{i}S^{z}_{i+1}\;|\;S^{z}_{i}S^{z}_{i+1}\quad$"),
-    #(73, r"RR$\;S^{+}_{i}S^{-}_{i+1}\;|\;1_{i}1_{i+1}\quad$"),
-    #(84, r"RR$\;S^{+}_{i}S^{-}_{i+1}\;|\;S^{+}_{i}S^{-}_{i+1}\quad$"),
-
-    ###########################################################################
-
-    #(2,  r"RR$\;S^{z}_{i}1_{i+1}\;|\;S^{z}_{i}1_{i+1}\quad$"),
-    #(4,  r"RR$\;S^{z}_{i}1_{i+1}\;|\;S^{-}_{i}1_{i+1}\quad$"),
-    #(5,  r"RR$\;S^{z}_{i}1_{i+1}\;|\;1_{i}S^{z}_{i+1}\quad$"),
-    #(12, r"RR$\;S^{z}_{i}1_{i+1}\;|\;S^{-}_{i}S^{+}_{i+1}\quad$"),
-    #(17, r"RR$\;1_{i}S^{z}_{i+1}\;|\;S^{z}_{i}1_{i+1}\quad$"),
-    #(24, r"RR$\;1_{i}S^{z}_{i+1}\;|\;S^{-}_{i}S^{+}_{i+1}\quad$"),
-    #(29, r"RR$\;S^{z}_{i}S^{z}_{i+1}\;|\;1_{i}1_{i+1}\quad$"),
-    #(45, r"IR$\;S^{+}_{i}S^{-}_{i+1}\;|\;1_{i}1_{i+1}\quad$"),
-    #(61, r"RR$\;S^{+}_{i}S^{-}_{i+1}\;|\;1_{i}1_{i+1}\quad$"),
-    #(62, r"RR$\;S^{+}_{i}S^{-}_{i+1}\;|\;S^{z}_{i}1_{i+1}\quad$"),
-    #(64, r"RR$\;S^{+}_{i}S^{-}_{i+1}\;|\;S^{-}_{i}1_{i+1}\quad$"),
-    #(65, r"RR$\;S^{+}_{i}S^{-}_{i+1}\;|\;1_{i}S^{z}_{i+1}\quad$"),
-    #(70, r"RR$\;S^{+}_{i}S^{-}_{i+1}\;|\;1_{i}S^{-}_{i+1}\quad$"),
-    #(72, r"RR$\;S^{+}_{i}S^{-}_{i+1}\;|\;S^{+}_{i}S^{-}_{i+1}\quad$"),
-
-    ###########################################################################
-
-    #(3, r"$\;S^{-}_{i,2}1_{i+1,2}+S^{+}_{i,2}1_{i+1,2}\quad$"),
-    #(8, r"$\;S^{+}_{i,2}S^{-}_{i+1,2}+S^{-}_{i,2}S^{+}_{i+1,2}\quad$"),
-
-    ###########################################################################
-
-    #(4,  r"$\;S^{z}_{i,1}S^{-}_{i,2}+S^{z}_{i,1}S^{+}_{i,2}\quad$"),
-    #(29, r"$\;S^{z}_{i,1}S^{z}_{i+1,1}\quad$"),
-    #(61, r"$\;S^{+}_{i,1}S^{-}_{i+1,1}+S^{-}_{i,1}S^{+}_{i+1,1}\quad$"),
-
-
-    ###########################################################################
-    # M=3, FId=no
-    ###########################################################################
-    #(4,   r"$\;S^{z}_{i,1}\left(S^{-}_{i,2}+S^{+}_{i,2}\right)\quad$"),
-    #(113, r"$\;S^{z}_{i,1}S^{z}_{i+1,1}\quad$"),
-    #(241, r"$\;S^{+}_{i,1}S^{-}_{i+1,1}+S^{-}_{i,1}S^{+}_{i+1,1}\quad$"),
-
-    # (12, r"$\;S^z_{i,1}\left(S^+_{i,2}S^-_{i+1,2}+S^-_{i,2}S^+_{i+1,2}\right)\quad$"),
-    # (72, r"$\;S^z_{i+1,1}\left(S^+_{i+1,2}S^-_{i+2,2}+S^-_{i+1,2}S^+_{i+2,2}\right)\quad$"),
-    # (244, r"$\;\left(S^+_{i,1}S^-_{i+1,1}+S^-_{i,1}S^+_{i+1,1}\right)\left(S^-_{i,2}+S^+_{i,2}\right)\quad$"),
-    # (250, r"$\;\left(S^+_{i,1}S^-_{i+1,1}+S^-_{i,1}S^+_{i+1,1}\right)\left(S^-_{i+1,2}+S^+_{i+1,2}\right)\quad$"),
-
-    ###########################################################################
-    # M=3, FId=yes
-    ###########################################################################
     (3, r"$\;S^-_{i,2}+S^+_{i,2}\quad$"),
     (7, r"$\;i\left(S^+_{i,2}S^-_{i+1,2}-S^-_{i,2}S^+_{i+1,2}\right)\quad$"),
     (8, r"$\;S^+_{i,2}S^-_{i+1,2}+S^-_{i,2}S^+_{i+1,2}\quad$"),
     (12, r"$\;S^-_{i,2}S^-_{i+1,2}+S^+_{i,2}S^+_{i+1,2}\quad$"),
     (50, r"$\;S^z_{i,1}S^z_{i,2}\quad$"),
-
-
-
 ]
-
 
 # =============================================================================
 # STRUKTURA DANYCH
-# =============================================================================
 
 @dataclass
 class GridRow:
@@ -132,10 +69,8 @@ class GridRow:
     g: float
     coefficients: dict[int, float]
 
-
 # =============================================================================
 # WCZYTYWANIE
-# =============================================================================
 
 def parse_sparse_coefficients(text: str, *, line_number: int) -> dict[int, float]:
     coefficients = {}
@@ -149,7 +84,9 @@ def parse_sparse_coefficients(text: str, *, line_number: int) -> dict[int, float
             index_text, value_text = item.split(":", maxsplit=1)
             basis_index, squared_coefficient = int(index_text), float(value_text)
         except ValueError as error:
-            raise ValueError(f"Niepoprawna para indeks:wartość w linii {line_number}: {item!r}") from error
+            raise ValueError(
+                f"Niepoprawna para indeks:wartość w linii {line_number}: {item!r}"
+            ) from error
 
         if basis_index < 1:
             raise ValueError(f"Indeks bazy musi być dodatni, linia {line_number}: {basis_index}")
@@ -166,11 +103,17 @@ def load_grid_file(filename: Path) -> list[GridRow]:
     if not filename.exists():
         raise FileNotFoundError(f"Nie znaleziono pliku:\n{filename}")
 
+    if filename.is_dir():
+        raise IsADirectoryError(
+            f"Podana ścieżka jest folderem, a nie plikiem:\n{filename}"
+        )
+
     rows = []
 
     with filename.open("r", encoding="utf-8") as file:
         for line_number, raw_line in enumerate(file, start=1):
             line = raw_line.strip()
+
             if not line or line.startswith("#"):
                 continue
 
@@ -182,7 +125,9 @@ def load_grid_file(filename: Path) -> list[GridRow]:
             try:
                 omega_0, g = float(parts[0]), float(parts[1])
             except ValueError as error:
-                raise ValueError(f"Nie udało się wczytać omega_0 lub g w linii {line_number}:\n{raw_line}") from error
+                raise ValueError(
+                    f"Nie udało się wczytać omega_0 lub g w linii {line_number}:\n{raw_line}"
+                ) from error
 
             coefficients = parse_sparse_coefficients(parts[2], line_number=line_number)
             rows.append(GridRow(omega_0, g, coefficients))
@@ -192,10 +137,8 @@ def load_grid_file(filename: Path) -> list[GridRow]:
 
     return rows
 
-
 # =============================================================================
 # BUDOWANIE MACIERZY
-# =============================================================================
 
 def unique_sorted(values: list[float]) -> np.ndarray:
     return np.array(sorted(set(values)), dtype=float)
@@ -218,7 +161,10 @@ def select_rows(rows: list[GridRow]) -> tuple[list[GridRow], str, str, float]:
     if fixed_parameter_value is None:
         if len(fixed_values) != 1:
             available = ", ".join(f"{value:.16g}" for value in fixed_values)
-            raise ValueError(f"W pliku znaleziono kilka wartości {fixed_name}:\n{available}\nUstaw fixed_parameter_value.")
+            raise ValueError(
+                f"W pliku znaleziono kilka wartości {fixed_name}:\n"
+                f"{available}\nUstaw fixed_parameter_value."
+            )
 
         selected_fixed_value = float(fixed_values[0])
 
@@ -227,11 +173,17 @@ def select_rows(rows: list[GridRow]) -> tuple[list[GridRow], str, str, float]:
 
         if not np.any(np.isclose(fixed_values, selected_fixed_value, rtol=1e-10, atol=1e-12)):
             available = ", ".join(f"{value:.16g}" for value in fixed_values)
-            raise ValueError(f"Nie znaleziono {fixed_name} = {selected_fixed_value:.16g}.\nDostępne: {available}")
+            raise ValueError(
+                f"Nie znaleziono {fixed_name} = {selected_fixed_value:.16g}.\n"
+                f"Dostępne: {available}"
+            )
 
-    selected_rows = [row for row in rows if np.isclose(get_fixed(row), selected_fixed_value, rtol=1e-10, atol=1e-12)]
+    selected_rows = [
+        row for row in rows
+        if np.isclose(get_fixed(row), selected_fixed_value, rtol=1e-10, atol=1e-12)
+    ]
+
     selected_rows.sort(key=get_y)
-
     y_values = [get_y(row) for row in selected_rows]
 
     if len(y_values) != len(set(y_values)):
@@ -240,7 +192,10 @@ def select_rows(rows: list[GridRow]) -> tuple[list[GridRow], str, str, float]:
     return selected_rows, y_name, fixed_name, selected_fixed_value
 
 
-def build_heatmap_matrix(rows: list[GridRow], y_name: str) -> tuple[np.ndarray, np.ndarray, int]:
+def build_heatmap_matrix(
+    rows: list[GridRow], y_name: str
+) -> tuple[np.ndarray, np.ndarray, int]:
+
     if not rows:
         raise ValueError("Brak danych do utworzenia heat mapy.")
 
@@ -248,7 +203,9 @@ def build_heatmap_matrix(rows: list[GridRow], y_name: str) -> tuple[np.ndarray, 
     final_basis_size = largest_index if basis_size is None else int(basis_size)
 
     if final_basis_size < largest_index:
-        raise ValueError(f"basis_size = {final_basis_size}, ale w pliku występuje indeks {largest_index}.")
+        raise ValueError(
+            f"basis_size = {final_basis_size}, ale w pliku występuje indeks {largest_index}."
+        )
 
     if final_basis_size < 1:
         raise ValueError("Nie znaleziono żadnych współczynników.")
@@ -264,10 +221,8 @@ def build_heatmap_matrix(rows: list[GridRow], y_name: str) -> tuple[np.ndarray, 
 
     return matrix, y_values, final_basis_size
 
-
 # =============================================================================
 # PARAMETRY Z NAZWY PLIKU
-# =============================================================================
 
 def extract_plot_parameters(filename: Path) -> dict[str, str]:
     patterns = {
@@ -308,10 +263,8 @@ def build_plot_title(filename: Path) -> str:
 
     return "; ".join(parts)
 
-
 # =============================================================================
 # WYKRES
-# =============================================================================
 
 def centers_to_edges(values: np.ndarray) -> np.ndarray:
     values = np.asarray(values, dtype=float)
@@ -332,18 +285,22 @@ def centers_to_edges(values: np.ndarray) -> np.ndarray:
     ))
 
 
-def plot_heatmap(matrix: np.ndarray, y_values: np.ndarray, final_basis_size: int, y_name: str) -> Path | None:
-
-    # -------------------------------------------------------------------------
-    # WYBÓR ZAKRESÓW OSI X
-    # -------------------------------------------------------------------------
+def plot_heatmap(
+    matrix: np.ndarray,
+    y_values: np.ndarray,
+    final_basis_size: int,
+    y_name: str
+) -> Path | None:
 
     ranges = [(1, final_basis_size)] if x_ranges is None else x_ranges
     selected_indices = []
 
     for start, end in ranges:
         if start < 1 or end > final_basis_size or start > end:
-            raise ValueError(f"Niepoprawny zakres osi X: ({start}, {end}). Rozmiar bazy = {final_basis_size}.")
+            raise ValueError(
+                f"Niepoprawny zakres osi X: ({start}, {end}). "
+                f"Rozmiar bazy = {final_basis_size}."
+            )
 
         selected_indices.extend(range(start, end + 1))
 
@@ -352,9 +309,7 @@ def plot_heatmap(matrix: np.ndarray, y_values: np.ndarray, final_basis_size: int
 
     selected_indices = np.array(selected_indices, dtype=int)
 
-    # Wybieramy tylko kolumny należące do podanych zakresów
     plot_matrix = matrix[:, selected_indices - 1]
-
     x_edges = np.arange(0.5, len(selected_indices) + 1.5)
     y_edges = centers_to_edges(y_values)
 
@@ -363,16 +318,8 @@ def plot_heatmap(matrix: np.ndarray, y_values: np.ndarray, final_basis_size: int
     colormap = plt.get_cmap().copy()
     colormap.set_bad("white")
 
-    # -------------------------------------------------------------------------
-    # PRÓG BIAŁEGO KOLORU
-    # -------------------------------------------------------------------------
-
     if white_below_threshold:
         plot_matrix = np.ma.masked_less(plot_matrix, threshold_white)
-
-    # -------------------------------------------------------------------------
-    # STAŁA SKALA KOLORÓW
-    # -------------------------------------------------------------------------
 
     if use_log_values:
         if color_max <= 0:
@@ -385,75 +332,90 @@ def plot_heatmap(matrix: np.ndarray, y_values: np.ndarray, final_basis_size: int
     else:
         norm = Normalize(vmin=color_min, vmax=color_max)
 
-    heatmap = ax.pcolormesh(x_edges, y_edges, plot_matrix, shading="flat", norm=norm, cmap=colormap)
+    heatmap = ax.pcolormesh(
+        x_edges, y_edges, plot_matrix,
+        shading="flat", norm=norm, cmap=colormap
+    )
 
     colorbar = fig.colorbar(heatmap, ax=ax, pad=0.02)
     colorbar.set_label(r"$|a_i|^2$")
 
     ax.set_ylabel(r"$g$" if y_name == "g" else r"$\omega_0$")
 
-    # -------------------------------------------------------------------------
-    # TICKI X — TYLKO WYBRANE
-    # -------------------------------------------------------------------------
+    index_to_position = {
+        original_index: position
+        for position, original_index in enumerate(selected_indices, start=1)
+    }
 
-    index_to_position = {original_index: position for position, original_index in enumerate(selected_indices, start=1)}
+    shown_labels = [
+        index for index in labeled_basis_indices
+        if index in index_to_position
+    ]
 
-    shown_labels = [index for index in labeled_basis_indices if index in index_to_position]
     tick_positions = [index_to_position[index] for index in shown_labels]
 
     ax.set_xticks(tick_positions)
     ax.set_xticklabels([str(index) for index in shown_labels])
 
-    # -------------------------------------------------------------------------
-    # LINIE ODDZIELAJĄCE ROZŁĄCZNE ZAKRESY X
-    # -------------------------------------------------------------------------
-
     current_position = 0
 
     for start, end in ranges[:-1]:
         current_position += end - start + 1
-        ax.axvline(current_position + 0.5, color="black", linestyle="--", linewidth=1)
-
-    # -------------------------------------------------------------------------
-    # OŚ Y
-    # -------------------------------------------------------------------------
+        ax.axvline(
+            current_position + 0.5,
+            color="black",
+            linestyle="--",
+            linewidth=1
+        )
 
     if len(y_values) <= 25:
         ax.set_yticks(y_values)
+
     else:
-        idx = np.linspace(0, len(y_values) - 1, min(15, len(y_values)), dtype=int)
+        idx = np.linspace(
+            0,
+            len(y_values) - 1,
+            min(15, len(y_values)),
+            dtype=int
+        )
+
         ax.set_yticks(y_values[idx])
         ax.set_yticklabels([f"{value:.4g}" for value in y_values[idx]])
 
     ax.set_xlim(0.5, len(selected_indices) + 0.5)
-    ax.set_ylim(y_edges[0] if y_min is None else y_min, y_edges[-1] if y_max is None else y_max)
-
-    # -------------------------------------------------------------------------
-    # TYTUŁ
-    # -------------------------------------------------------------------------
+    ax.set_ylim(
+        y_edges[0] if y_min is None else y_min,
+        y_edges[-1] if y_max is None else y_max
+    )
 
     title = build_plot_title(input_filename)
 
-    # -------------------------------------------------------------------------
-    # LEGENDA
-    # -------------------------------------------------------------------------
-
     if show_manual_legend and manual_legend_entries:
         legend_text = manual_legend_title + " " + "; ".join(
-            f"{i}: {description}" for i, description in manual_legend_entries
+            f"{i}: {description}"
+            for i, description in manual_legend_entries
         )
 
         fig.tight_layout(rect=(0, 0.10, 1, 0.92))
-        fig.text(0.5, 0.965, title, ha="center", va="top", fontsize=plot_title_fontsize)
-        fig.text(0.5, 0.030, legend_text, ha="center", va="bottom", fontsize=manual_legend_fontsize)
+        fig.text(
+            0.5, 0.965, title,
+            ha="center", va="top",
+            fontsize=plot_title_fontsize
+        )
+
+        fig.text(
+            0.5, 0.030, legend_text,
+            ha="center", va="bottom",
+            fontsize=manual_legend_fontsize
+        )
 
     else:
         fig.tight_layout(rect=(0, 0, 1, 0.92))
-        fig.text(0.5, 0.965, title, ha="center", va="top", fontsize=plot_title_fontsize)
-
-    # -------------------------------------------------------------------------
-    # ZAPIS
-    # -------------------------------------------------------------------------
+        fig.text(
+            0.5, 0.965, title,
+            ha="center", va="top",
+            fontsize=plot_title_fontsize
+        )
 
     output_path = None
 
@@ -474,14 +436,15 @@ def plot_heatmap(matrix: np.ndarray, y_values: np.ndarray, final_basis_size: int
 
         print(f"Zapisano wykres:\n{output_path}")
 
-    plt.show() if show_plot else plt.close(fig)
+    if show_plot:
+        plt.show()
+    else:
+        plt.close(fig)
 
     return output_path
 
-
 # =============================================================================
 # MAIN
-# =============================================================================
 
 def main() -> None:
     print(f"Wczytuję plik:\n{input_filename}")
@@ -501,7 +464,6 @@ def main() -> None:
         print(f"Wartości mniejsze niż {threshold_white:.3e} będą białe.")
 
     plot_heatmap(matrix, y_values, final_basis_size, y_name)
-
     print("Gotowe.")
 
 
