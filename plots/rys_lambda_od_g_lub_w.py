@@ -1,3 +1,4 @@
+
 from pathlib import Path
 import re
 import matplotlib.pyplot as plt
@@ -8,24 +9,28 @@ import numpy as np
 # USTAWIENIA
 
 filename_template = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_7_03.09.2026\siatka_omega_g\grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    # r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_7_03.09.2026\siatka_omega_g\grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
 )
 
 eig_min, eig_max = 1, 20
 
 # "fixed_omega" -> stałe omega_0, oś X = g
 # "fixed_g"     -> stałe g, oś X = omega_0
-plot_mode = "fixed_g"
+plot_mode = "fixed_omega"
 
-omega_fixed = 0.4827586206896552
-g_fixed = 0.4827586206896552
+# "x", "1/x", "x^2", "gamma" - (gamma = x/(x+1)).
+x_transform = "gamma"
+
+omega_fixed = 0.5 #0.4827586206896552 
+g_fixed = 1.5172413793103448  
 value_tolerance = 1e-10
 
 save_plot = True
 show_plot = True
 
 output_directory = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\spotkanie_05.10.2026"
+    r"C:\Users\aleks\Desktop\praca magisterska\spotkanie_12.10.2026"
 )
 output_directory.mkdir(parents=True, exist_ok=True)
 
@@ -40,6 +45,9 @@ if eig_max < eig_min:
 
 if plot_mode not in ["fixed_omega", "fixed_g"]:
     raise ValueError('plot_mode musi być równy "fixed_omega" albo "fixed_g".')
+
+if x_transform not in ["x", "1/x", "x^2", "gamma"]:
+    raise ValueError('x_transform musi być równy "x", "1/x", "x^2" albo "gamma".')
 
 filename_pattern = re.compile(r"_eig\d+\.txt$")
 
@@ -260,6 +268,29 @@ for eig_index in range(eig_min, eig_max + 1):
             f"omega_0 = {np.min(omega_0)} -> {np.max(omega_0)}"
         )
 
+    # TRANSFORMACJA OSI X
+    x_symbol = "g" if plot_mode == "fixed_omega" else r"\omega_0"
+
+    if x_transform == "1/x":
+        valid = x_values != 0
+        if not np.all(valid):
+            print(f"eig = {eig_index}: pominięto {np.sum(~valid)} punktów z x = 0.")
+        x_values = 1 / x_values[valid]
+        lambda_values = lambda_values[valid]
+        x_label = rf"$\frac{{1}}{{{x_symbol}}}$"
+    elif x_transform == "x^2":
+        x_values = x_values**2
+        x_label = rf"${x_symbol}^2$"
+    elif x_transform == "gamma":
+        if np.any(x_values == -1):
+            raise ValueError("Transformacja gamma jest nieokreślona dla x = -1.")
+        x_values = x_values / (x_values + 1)
+        x_label = rf"$\gamma = \frac{{{x_symbol}}}{{{x_symbol}+1}}$"
+
+    sort_indices = np.argsort(x_values)
+    x_values = x_values[sort_indices]
+    lambda_values = lambda_values[sort_indices]
+
     ax.plot(
         x_values, lambda_values,
         marker="o", markersize=3.0, linewidth=1.2,
@@ -277,6 +308,9 @@ else:
     plot_name = "lampda_vs_omega0"
     fixed_tag = f"_g_{fixed_value_title:.3g}"
 
+if x_transform != "x":
+    plot_name += f"_{x_transform.replace('/', 'div').replace('^', 'pow')}"
+
 output_filename = output_directory / (
     f"{plot_name}_M_{support}_Jp_{j_prime}_d_{delta}_d2_{delta2}_"
     f"FId_{fermion_identity}_eig_{eig_min}-{eig_max}{fixed_tag}.png"
@@ -288,7 +322,9 @@ print(f"\nPlik wynikowy:\n{output_filename}")
 # FORMATOWANIE
 
 ax.set_xlabel(x_label)
-ax.set_xlim(0, 2)
+#ax.set_xticks(np.arange(0, 1.01, 0.1))
+if x_transform == "x":
+    ax.set_xlim(0, 2.0)
 ax.set_ylabel(r"$\lambda$")
 ax.set_title(build_plot_title(filename_template, eig_min, eig_max, fixed_value_title))
 ax.legend()

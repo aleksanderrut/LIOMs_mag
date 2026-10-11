@@ -6,7 +6,7 @@ FOLDER = Path(
 
 PLIK_BAZY = FOLDER / "bazy" / "operators_ladder_mag_M_4_J_1.0_Jp_0.0_d_0.001_d2_0.0_w_0.5_g_0.5_T_both_P_both_Sz_cons_fermion_yes_Sz_cons_boson_both_FId_true_klas.txt"
 
-PLIK_LIOM = FOLDER / "siatka_omega_g_liomsy" / "lioms_grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+PLIK_LIOM = FOLDER / "siatka_omega_g_liomsy" / "lioms_grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig35.txt"
 
 PLIK_WYJSCIOWY = PLIK_LIOM.with_name(PLIK_LIOM.stem + "_kompozycja.data")
 

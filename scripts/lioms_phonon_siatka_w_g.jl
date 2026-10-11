@@ -46,6 +46,24 @@ Hilbert-Schmidt norm.
 @inline hs_norm(op::ps.OperatorTS) = sqrt(real(hs_product(op, op)))
 
 """
+Check orthonormality of a set of operators under the Hilbert-Schmidt inner product.
+"""
+function check_basis_orthonormality(ops; tol=1e-10)
+    N = length(ops)
+    for i in 1:N
+        for j in (i+1):N
+            value = hs_product(ops[i], ops[j])
+            if abs(value) > tol
+                println("Problem: i=$i, j=$j, HS=$value")
+                return false
+            end
+        end
+    end
+
+    println("Basis is orthonormal with tolerance $tol")
+    return true
+end
+"""
 0 = identity ; 1 = S+ ; 2 = Sz ; 3 = S-
 """
 @inline hc(o::Int) = (o == 1 ? 3 : (o == 3 ? 1 : o))
@@ -328,6 +346,8 @@ function compute_lioms(H::ps.OperatorTS, L::Int, max_supp::Int, time_reversal::S
     error("Empty operator basis after norm filtering.")
   end
   ops ./= norms
+  # Doatkowe sprawdzenie ortonormalności bazy operatorów, zakometować w trybie siatki !!!!!!!!!
+  # check_basis_orthonormality(ops)
 
   println("Precomputing commutators...")
   comms = Vector{ps.OperatorTS}(undef, length(ops))
@@ -352,6 +372,15 @@ function compute_lioms(H::ps.OperatorTS, L::Int, max_supp::Int, time_reversal::S
 
   F = eigen(Symmetric(corr_mat))
   return F.values, F.vectors, ops_list, ops_list_rows
+end
+
+"""
+Check Hilbert-Schmidt inner product between two eigenvectors.
+"""
+function check_liom_hs(oper1::Int, oper2::Int, evecs)
+    hs = dot(evecs[:, oper1], evecs[:, oper2])
+    println("⟨Q_$oper1, Q_$oper2⟩_HS = ", hs)
+    return hs
 end
 
 """
@@ -594,6 +623,10 @@ function main()
   tic = time_ns()
   evals, evecs, ops_list, ops_list_rows = compute_lioms(H, L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson, include_fermion_identity)
   toc = time_ns()
+
+  # sprawdzenie <O_i,O_j>_{HS} = 0 dla i,j = 1,...,N dla wyników z diagonalizacji
+  # oper1, oper2 = 2, 3
+  #check_liom_hs(oper1, oper2, evecs)
 
   base_path = "$(@__DIR__)/liom_mag_dane"
   evals_path = "$(base_path)/wartosci_wlasne"
