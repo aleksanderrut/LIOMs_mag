@@ -15,10 +15,10 @@ filename = Path(
 
 # ZAKRES LIOM-ow (oba konce WLACZNIE), np. eig3, eig4, ..., eig20.
 eig_min = 3
-eig_max = 4
+eig_max = 6
 
 # Numery elementow bazy, ktorych udzialy sumujemy we WSZYSTKICH tych LIOM-ach.
-selected_basis_indices = [1,1153,1164,1168]
+# selected_basis_indices = [1,1153,1164,1168]
 selected_basis_indices = [4,8,200,458]
 
 # Plik bazy DLA M=4, zgodnie z przykladowym skryptem.
