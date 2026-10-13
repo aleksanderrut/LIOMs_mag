@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import re
 import matplotlib.pyplot as plt
@@ -17,13 +16,13 @@ eig_min, eig_max = 1, 20
 
 # "fixed_omega" -> stałe omega_0, oś X = g
 # "fixed_g"     -> stałe g, oś X = omega_0
-plot_mode = "fixed_omega"
+plot_mode = "fixed_g"
 
 # "x", "1/x", "x^2", "gamma" - (gamma = x/(x+1)).
-x_transform = "gamma"
+x_transform = "x"
 
 omega_fixed = 0.5 #0.4827586206896552 
-g_fixed = 1.5172413793103448  
+g_fixed = 0.25  
 value_tolerance = 1e-10
 
 save_plot = True
@@ -324,7 +323,7 @@ print(f"\nPlik wynikowy:\n{output_filename}")
 ax.set_xlabel(x_label)
 #ax.set_xticks(np.arange(0, 1.01, 0.1))
 if x_transform == "x":
-    ax.set_xlim(0, 2.0)
+    ax.set_xlim(0, 10.0)
 ax.set_ylabel(r"$\lambda$")
 ax.set_title(build_plot_title(filename_template, eig_min, eig_max, fixed_value_title))
 ax.legend()

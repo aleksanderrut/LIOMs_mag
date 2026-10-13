@@ -21,8 +21,8 @@ eig_max = 34
 # "I_n" -> |#S+ - #S-|
 # "P_n" -> |#pozycja(S+) - #pozycja(S-)| tylko dla I_0
 # "typ" -> b, f, m
-klasyfikacja = "P_n"
-wybrana_grupa = "0"
+klasyfikacja = "I_n"
+wybrana_grupa = "3"
 
 # "g" albo "g2"
 x_axis_mode = "g"
@@ -63,10 +63,10 @@ save_plot = True
 dpi = 300
 cmap = "viridis"
 
-vmin, vmax = 0.0, 1.0
+#vmin, vmax = 0.0, 1.0
 
 output_folder = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\spotkanie_12.10.2026"
+    r"C:\Users\aleks\Desktop\praca magisterska\meeting_13.10.2026"
 )
 
 
@@ -254,7 +254,7 @@ else:
 # TYTUŁ
 
 title = (
-    rf"$M={M}$, $J'={Jp}$, $\Delta={Delta}$, $\Delta_2={Delta2}$"
+    rf"$M={M}$, $J'={Jp}$, $\Delta={Delta}$, $\Delta'={Delta2}$"
     "\n"
     rf"$T={T}$, $P={P}$, $F={F}$, $B={B}$, $FId={FId}$, "
     f"{opis_eig}, class: {opis_klasyfikacji}"
@@ -267,19 +267,18 @@ title = (
 fig, ax = plt.subplots(figsize=(8, 7), constrained_layout=True)
 ax.set_box_aspect(1)
 
-mesh = ax.pcolormesh(
-    x_values, omega_values, heatmap,
-    shading="auto", cmap=cmap, vmin=vmin, vmax=vmax
-)
+#mesh = ax.pcolormesh(x_values, omega_values, heatmap,shading="auto", cmap=cmap, vmin=vmin, vmax=vmax)
+
+mesh = ax.pcolormesh(x_values[1:], omega_values[1:], heatmap[1:, 1:], shading="auto", cmap=cmap)
 
 cbar = fig.colorbar(mesh, ax=ax, pad=0.09)
 
 # =============================================================================
 # COLORBAR
 
-ticks = np.arange(0.0, 1.01, 0.1)
-cbar.set_ticks(ticks)
-cbar.set_ticklabels([f"{x:.1f}" for x in ticks])
+#ticks = np.arange(0.0, 1.01, 0.1)
+#cbar.set_ticks(ticks)
+#cbar.set_ticklabels([f"{x:.1f}" for x in ticks])
 if mode == "single":
     cbar.set_label(opis_klasyfikacji, fontsize=14)
 else:
