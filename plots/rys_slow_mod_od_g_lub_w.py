@@ -25,7 +25,7 @@ eig_mode = "sum"
 selected_eig = 19
 
 eig_min = 3
-eig_max = 10
+eig_max = 19
 
 # "fixed_omega": omega_0 ustalone, na osi X jest g
 # "fixed_g":     g ustalone, na osi X jest omega_0
@@ -35,10 +35,17 @@ g_fixed = 0.25
 value_tolerance = 1e-10
 
 # Kazdy operator jest rysowany jako osobna linia.
-wybrane_operatory = [3,4,7,8,12,13,16,19,20,25]
+# wybrane_operatory = [3,4,7,8,12,13,16,19,20,25]
 #wybrane_operatory = [26,32,33,34,36,37,38,44,48,58]
 #wybrane_operatory = [60,64,115,120,124,138,142,144,148,156]
 #wybrane_operatory = [225,289,292,300,304,1121]
+
+#wybrane_operatory = [4,7,13,16,19,20,25,33,34,37,38,225,1057,1121]
+#wybrane_operatory = [3,12,32,36,44,48,58,60,64,115,120,124,138,142,144,148,156,292,300,304]
+#wybrane_operatory = [8,26]
+#wybrane_operatory = [49,1,52,289]
+
+wybrane_operatory = [8,26]
 
 
 show_plot = True
@@ -54,7 +61,7 @@ operator_description_lines = 3
 dpi = 300
 
 output_directory = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\meeting_13.10.2026\M=3"
+    r"C:\Users\aleks\Desktop\praca magisterska\spotkanie_19.10.2026\M=3"
 )
 
 
