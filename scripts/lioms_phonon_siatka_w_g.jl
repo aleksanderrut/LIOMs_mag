@@ -317,7 +317,8 @@ function save_grid_liom_row(io, omega_0::Real, g::Real, eigenvector::AbstractVec
       if !first_saved
         print(io, ";")
       end
-      @printf(io, "%d:%.16e", i,squared_coeff)
+      #@printf(io, "%d:%.16e", i,squared_coeff)
+      @printf(io, "%d:%+.16e", i, eigenvector[i])
       first_saved = false
     end
   end
