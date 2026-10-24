@@ -387,8 +387,8 @@ function main()
     PBC = args["pbc"] == "yes"
 
     g_MIN = 0.0
-    g_MAX = 0.0
-    g_POINTS = 1
+    g_MAX = 10.0
+    g_POINTS = 41
     g_values = range(g_MIN, g_MAX, length=g_POINTS)
 
     # PIERWSZY WOLNY MOD ; INDEKSY 3 I 50
