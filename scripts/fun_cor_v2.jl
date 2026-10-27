@@ -613,6 +613,9 @@ function main()
     # g_values = range(g_MIN, g_MAX, length=g_POINTS)
 
     g_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
+    g_MIN = minimum(g_values)
+    g_MAX = maximum(g_values)
+    g_POINTS = length(g_values)
 
     # PIERWSZY WOLNY MOD ; INDEKSY 3 I 50
     W_3  = 9.9747961865030332e-01
