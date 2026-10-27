@@ -51,12 +51,15 @@ function gen_baza_xxz(L::Int; mag=:all)
     return baza_int, baza_bit, indeks_odwrotny
 end
 
+
 # GENEROWANIE HAMILTONIANU I OPERATOROW
 # Q_3   = RR 000|300
 # Q_4   = RR 000|220
 # Q_8   = RR 000|130
 # Q_12  = RR 000|330
+# Q_26  = RR 000|103
 # Q_50  = RR 200|200
+# Q_60  = RR 200|130
 # Q_62  = RR 200|230
 # Q_118 = RR 020|320
 # Q_231 = II 130|320
@@ -126,7 +129,9 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
     Q_4    = zeros(Float64, ile_stanow, ile_stanow)
     Q_8    = zeros(Float64, ile_stanow, ile_stanow)
     Q_12   = zeros(Float64, ile_stanow, ile_stanow)
+    Q_26   = zeros(Float64, ile_stanow, ile_stanow)
     Q_50   = zeros(Float64, ile_stanow, ile_stanow)
+    Q_60   = zeros(Float64, ile_stanow, ile_stanow)
     Q_62   = zeros(Float64, ile_stanow, ile_stanow)
     Q_118  = zeros(Float64, ile_stanow, ile_stanow)
     Q_231  = zeros(Float64, ile_stanow, ile_stanow)
@@ -152,7 +157,7 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
             Q_50[i, i] += 2 * sz_ferm_s * sz_bos_s
         end
 
-        # 2. OPERATORY DWUMIEJSCOWE Q_4, Q_8, Q_12, Q_62, Q_118, Q_231, Q_237
+        # 2. OPERATORY DWUMIEJSCOWE Q_4, Q_8, Q_12, Q_60, Q_62, Q_118, Q_231, Q_237
         for bit_s in 0:(liczba_polaczen - 1)
             if bit_s == L - 1
                 bit_t = 0
@@ -169,10 +174,12 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
             sz_bos_t = bos_t - 0.5
 
             # Q_8 = RR 000|130 ; (S+_s,2*S-_t,2 + S-_s,2*S+_t,2)
+            # Q_60 = RR 200|130 ; Sz_s,1 * (S+_s,2*S-_t,2 + S-_s,2*S+_t,2)
             if bos_s != bos_t
                 new_state_bos = state_bos ⊻ ((1 << bit_s) | (1 << bit_t))
                 new_index = indeks_odwrotny[(state, new_state_bos)]
                 Q_8[new_index, i] += 1.0
+                Q_60[new_index, i] += sz_ferm_s
             end
 
             # Q_12 = RR 000|330 ; (S-_s,2*S-_t,2 + S+_s,2*S+_t,2)
@@ -212,13 +219,22 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
             end
         end
 
-        # 3. OPERATORY TRZYMIEJSCOWE Q_1128 ORAZ Q_1170
+        # 3. OPERATORY TRZYMIEJSCOWE Q_26, Q_1128 ORAZ Q_1170
         for bit_s in 0:(liczba_trojek - 1)
             bit_t = (bit_s + 1) % L
             bit_u = (bit_s + 2) % L
             spin_s = (state >> bit_s) & 1
             spin_t = (state >> bit_t) & 1
             spin_u = (state >> bit_u) & 1
+
+            # Q_26 = RR 000|103 ; (S+_s,2*S-_u,2 + S-_s,2*S+_u,2)
+            bos_s = (state_bos >> bit_s) & 1
+            bos_u = (state_bos >> bit_u) & 1
+            if bos_s != bos_u
+                new_state_bos = state_bos ⊻ ((1 << bit_s) | (1 << bit_u))
+                new_index = indeks_odwrotny[(state, new_state_bos)]
+                Q_26[new_index, i] += 1.0
+            end
 
             if spin_s != spin_u
                 new_state = state ⊻ ((1 << bit_s) | (1 << bit_u))
@@ -240,8 +256,213 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
             end
         end
     end
-    return H, Q_3, Q_4, Q_8, Q_12, Q_50, Q_62, Q_118, Q_231, Q_237, Q_1128, Q_1170
+    return H, Q_3, Q_4, Q_8, Q_12, Q_50, Q_62, Q_118, Q_231, Q_237, Q_1128, Q_1170, Q_26, Q_60
 end
+
+# =============================================================================
+
+# WCZYTYWANIE OPERATORÓW Z ZAPISANEJ BAZY
+function wczytaj_baze_operatorow(filename)
+    lista_operatorow = []
+    for (nr, linia) in enumerate(eachline(filename))
+        pola = split(strip(linia))
+        length(pola) == 3 || error("Niepoprawny wiersz $nr")
+        # Pierwsza kolumna jest ignorowana
+        sektor = String(pola[2])
+        nogi = split(pola[3], "|")
+        length(nogi) == 2 || error("Niepoprawny zapis operatora w wierszu $nr")
+
+        # Zamiana znaków na cyfry 0,1,2,3
+        fermion_1 = [parse(Int, string(c)) for c in nogi[1]]
+        bozon_2  = [parse(Int, string(c)) for c in nogi[2]]
+        push!(lista_operatorow, (sektor, fermion_1, bozon_2))
+    end
+    println("Wczytano $(length(lista_operatorow)) operatorów")
+    return lista_operatorow
+end
+
+# SPRZĘŻENIE HERMITOWSKIE
+function sprzezenie_operatora(lista)
+    lista_hc = copy(lista)
+    for i in eachindex(lista)
+        if lista[i] == 1
+            lista_hc[i] = 3       # S+ -> S-
+        elseif lista[i] == 3
+            lista_hc[i] = 1       # S- -> S+
+        else
+            lista_hc[i] = lista[i]  # I i Sz bez zmian
+        end
+    end
+    return lista_hc
+end
+
+# ROZWINIĘCIE JEDNEJ NOGI W SEKTORZE R LUB I
+function rozwin_noge(lista, sektor)
+    # Sprzężenie hermitowskie operatora
+    lista_hc = sprzezenie_operatora(lista)
+    if sektor == 'R'
+        wsp_1 = 1.0
+        wsp_2 = 1.0
+    elseif sektor == 'I'
+        wsp_1 =  im
+        wsp_2 = -im
+    end
+    # Każdy element: (operator, współczynnik)
+    wyrazy = [(lista, wsp_1), (lista_hc, wsp_2)]
+    return wyrazy
+end
+
+# ROZWINIĘCIE CAŁEGO OPERATORA NA DWÓCH NOGACH
+function rozwin_operator(sektor, fermion_1, bozon_2)
+    sektor_fermion = sektor[1]
+    fermion_rozwiniety = rozwin_noge(fermion_1, sektor_fermion)
+    sektor_bozon = sektor[2]
+    bozon_rozwiniety = rozwin_noge(bozon_2, sektor_bozon)
+    wyrazy = []
+
+    # Każdy wyraz fermionowy mnożymy przez każdy wyraz bozonowy
+    for wyraz_fermion in fermion_rozwiniety
+        # Rozdzielenie operatora i jego współczynnika
+        operator_fermion = wyraz_fermion[1]
+        wspolczynnik_fermion = wyraz_fermion[2]
+        for wyraz_bozon in bozon_rozwiniety
+            # Rozdzielenie operatora i jego współczynnika
+            operator_bozon = wyraz_bozon[1]
+            wspolczynnik_bozon = wyraz_bozon[2]
+
+            wspolczynnik = wspolczynnik_fermion * wspolczynnik_bozon # Mnożenie współczynników
+
+            # Zapisanie wyrazu: (operator fermionowy, operator bozonowy, współczynnik)
+            push!(wyrazy, (operator_fermion, operator_bozon, wspolczynnik))
+        end
+    end
+    return wyrazy
+end
+
+# DZIAŁANIE JEDNEGO STRINGU NA STAN BITOWY
+function dzialaj_na_stan(state, operatory, przesuniecie, L)
+    new_state = state
+    amplituda = 1.0
+    for (x, op) in enumerate(operatory)
+
+        op == 0 && continue
+
+        # Numer bitu, z uwzględnieniem translacji
+        bit_s = mod(przesuniecie + x - 1, L)
+
+        spin = (new_state >> bit_s) & 1
+
+        if op == 1
+            # S+ |0> = |1>
+            # S+ |1> = 0
+            spin == 1 && return nothing
+
+            new_state = new_state ⊻ (1 << bit_s)
+
+        elseif op == 3
+            # S- |1> = |0>
+            # S- |0> = 0
+            spin == 0 && return nothing
+
+            new_state = new_state ⊻ (1 << bit_s)
+
+        elseif op == 2
+            # Sz |0> = -1/2 |0>
+            # Sz |1> = +1/2 |1>
+            amplituda *= spin - 0.5
+        end
+    end
+
+    return new_state, amplituda
+end
+
+# GENEROWANIE MACIERZY OPERATORA O_i
+function generuj_operator_z_bazy(
+    numer,
+    lista_operatorow,
+    L,
+    baza_int,
+    indeks_odwrotny;
+    PBC=true,
+)
+
+    # Odczyt operatora o podanym numerze
+    1 <= numer <= length(lista_operatorow) ||
+        error("Numer operatora poza zakresem")
+
+    sektor, gora, dol = lista_operatorow[numer]
+
+    length(gora) <= L ||
+        error("Długość operatora jest większa niż L")
+
+    # Rozwinięcie RR, RI, IR lub II
+    wyrazy = rozwin_operator(sektor, gora, dol)
+
+    # Faktyczny zasięg operatora
+    zasieg = findlast(
+        x -> gora[x] != 0 || dol[x] != 0,
+        eachindex(gora)
+    )
+
+    isnothing(zasieg) &&
+        error("Operator identycznościowy")
+
+    # Translacje:
+    # PBC: wszystkie L położeń
+    # OBC: tylko położenia mieszczące się w łańcuchu
+    przesuniecia = PBC ? (0:L-1) : (0:L-zasieg)
+
+    ile_stanow = length(baza_int)
+
+    # ComplexF64 obsługuje również operatory RI i IR
+    Q = zeros(ComplexF64, ile_stanow, ile_stanow)
+
+    # Pętla po stanach początkowych
+    for i in 1:ile_stanow
+
+        state, state_bos = baza_int[i]
+
+        # Suma po translacjach
+        for przesuniecie in przesuniecia
+
+            # Suma po wyrazach rozwinięcia symetrii
+            for (op_gora, op_dol, wsp) in wyrazy
+
+                wynik_f = dzialaj_na_stan(
+                    state, op_gora, przesuniecie, L
+                )
+
+                wynik_f === nothing && continue
+
+                wynik_b = dzialaj_na_stan(
+                    state_bos, op_dol, przesuniecie, L
+                )
+
+                wynik_b === nothing && continue
+
+                new_state, amp_f = wynik_f
+                new_state_bos, amp_b = wynik_b
+
+                # Szukanie indeksu nowego stanu w bazie
+                new_index = get(
+                    indeks_odwrotny,
+                    (new_state, new_state_bos),
+                    0
+                )
+
+                # Jeśli stan wypada poza wybrany sektor
+                new_index == 0 && continue
+
+                # Wpis do macierzy operatora
+                Q[new_index, i] += wsp * amp_f * amp_b
+
+            end
+        end
+    end
+    return Q
+end
+
+# =============================================================================
 
 # NORMALIZACJA OPERATORA
 function normalizuj_operator(Q)
@@ -386,10 +607,12 @@ function main()
     omega0 = args["omega0"]
     PBC = args["pbc"] == "yes"
 
-    g_MIN = 0.0
-    g_MAX = 10.0
-    g_POINTS = 41
-    g_values = range(g_MIN, g_MAX, length=g_POINTS)
+    # g_MIN = 0.0
+    # g_MAX = 10.0
+    # g_POINTS = 41
+    # g_values = range(g_MIN, g_MAX, length=g_POINTS)
+
+    g_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
 
     # PIERWSZY WOLNY MOD ; INDEKSY 3 I 50
     W_3  = 9.9747961865030332e-01
@@ -425,12 +648,19 @@ function main()
     a3_1128 = sqrt(W3_1128)
     a3_1170 = sqrt(W3_1170)
 
-    # GENEROWANIE BAZY
-    mag = :all
-    N_up = "all"
-    println("Generowanie pelnej bazy...")
+    # GENEROWANIE BAZY - cała magentyzacja
+    # mag = :all
+    # N_up = "all"
+    # println("Generowanie pelnej bazy...")
+    # baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
+
+    # GENEROWANIE BAZY - sektor magnetyzacji
+    mag = N_up - M / 2
+    println("Generowanie bazy...")
     baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
-    println("Wymiar przestrzeni Hilberta: ", length(baza_int))
+
+    #println("Wymiar przestrzeni Hilberta: ", length(baza_int))
+
     baza_data = Matrix{Any}(undef, length(baza_int), 5)
     for i in 1:length(baza_int)
         baza_data[i, 1] = i
@@ -444,7 +674,7 @@ function main()
     # Pierwsza kolumna: g. Wszystkie pozostale: Tr([H,Q]†[H,Q])/D.
     kolumny = [
         "g",
-        "Q_3", "Q_4", "Q_8", "Q_12", "Q_50",
+        "Q_3", "Q_4", "Q_8", "Q_12", "Q_26", "Q_50", "Q_60",
         "Q_62", "Q_118", "Q_231", "Q_237", "Q_1128", "Q_1170",
         "Q_slow_3_50",
         "Q_slow_8_12_62_118",
@@ -462,6 +692,10 @@ function main()
     kolumny_korelacji = [
         "g",
         "t",
+        "Q_3",
+        "Q_8",
+        "Q_26",
+        "Q_60",
         "C_slow_3_50",
         "C_slow_8_12_62_118",
         "C_slow_8_4_231_237_62_118_1128_1170"
@@ -479,8 +713,13 @@ function main()
         println("Punkt: ", k, "/", g_POINTS)
 
         #generowane Ham i wszystkich operatorów
-        H, Q_3, Q_4, Q_8, Q_12, Q_50, Q_62, Q_118, Q_231, Q_237, Q_1128, Q_1170 =
+        H, Q_3, Q_4, Q_8, Q_12, Q_50, Q_62, Q_118, Q_231, Q_237, Q_1128, Q_1170, Q_26, Q_60 =
         gen_ham_xxz(M, J, Delta, PBC, baza_int, indeks_odwrotny, omega0, g)
+
+        # save_data(H, "Ham", PBC; L_x=M, N_up, J, Delta, omega0)
+        # save_data(Q_3, "Q_3", PBC; L_x=M, N_up, J, Delta, omega0)
+        # save_data(Q_4, "Q_4", PBC; L_x=M, N_up, J, Delta, omega0)
+        # save_data(Q_8, "Q_8", PBC; L_x=M, N_up, J, Delta, omega0)
 
         if k == 1
             D = size(H, 1)
@@ -502,7 +741,9 @@ function main()
         Q_4   = normalizuj_operator(Q_4)
         Q_8   = normalizuj_operator(Q_8)
         Q_12  = normalizuj_operator(Q_12)
+        Q_26  = normalizuj_operator(Q_26)
         Q_50  = normalizuj_operator(Q_50)
+        Q_60  = normalizuj_operator(Q_60)
         Q_62  = normalizuj_operator(Q_62)
         Q_118 = normalizuj_operator(Q_118)
         Q_231 = normalizuj_operator(Q_231)
@@ -542,7 +783,9 @@ function main()
         C_4, wynik_4 = oblicz_komutator(H, Q_4)
         C_8, wynik_8 = oblicz_komutator(H, Q_8)
         C_12, wynik_12 = oblicz_komutator(H, Q_12)
+        C_26, wynik_26 = oblicz_komutator(H, Q_26)
         C_50, wynik_50 = oblicz_komutator(H, Q_50)
+        C_60, wynik_60 = oblicz_komutator(H, Q_60)
         C_62, wynik_62 = oblicz_komutator(H, Q_62)
         C_118, wynik_118 = oblicz_komutator(H, Q_118)
         C_231, wynik_231 = oblicz_komutator(H, Q_231)
@@ -553,7 +796,7 @@ function main()
         C_slow_2, wynik_slow_2 = oblicz_komutator(H, Q_slow_8_12_62_118)
         C_slow_3, wynik_slow_3 = oblicz_komutator(H, Q_slow_8_4_231_237_62_118_1128_1170)
 
-        wyniki[k, :] = [g,wynik_3,wynik_4,wynik_8,wynik_12,wynik_50,wynik_62,wynik_118,wynik_231,wynik_237,wynik_1128,wynik_1170,wynik_slow_1,wynik_slow_2,wynik_slow_3]
+        wyniki[k, :] = [g,wynik_3,wynik_4,wynik_8,wynik_12,wynik_26,wynik_50,wynik_60,wynik_62,wynik_118,wynik_231,wynik_237,wynik_1128,wynik_1170,wynik_slow_1,wynik_slow_2,wynik_slow_3]
 
         # println("Q_3 = ", wynik_3)
         # println("Q_4 = ", wynik_4)
@@ -570,7 +813,7 @@ function main()
         # println("Q_slow_8_12_62_118 = ", wynik_slow_2)
         # println("Q_slow_8_4_231_237_62_118_1128_1170 = ", wynik_slow_3)
 
-        operatory_korelacji = [Q_slow_3_50, Q_slow_8_12_62_118, Q_slow_8_4_231_237_62_118_1128_1170] #WYBOR OPERATOROW
+        operatory_korelacji = [Q_slow_3_50, Q_slow_8_12_62_118, Q_slow_8_4_231_237_62_118_1128_1170, Q_3, Q_8, Q_26, Q_60] #WYBOR OPERATOROW
         wynik_H = eigen(Symmetric(H)) # DIAGONALIZACJA ED - RAZ DLA KAZDEGO g
 
         dane_korelacji = Vector{Any}(undef, length(operatory_korelacji))

@@ -10,6 +10,8 @@ Thumbs.db
 
 # Calculation results
 /scripts/liom_mag_dane/
+/scripts/fun_cor_data/
+/cripts/Lanczos_XXZ_wyniki/
 
 # Generated plots
 /plots/lioms_wykresy/

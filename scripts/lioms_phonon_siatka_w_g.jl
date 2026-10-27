@@ -297,8 +297,10 @@ function compute_eigensystem_from_prepared_basis(H::ps.OperatorTS, ops::Vector{p
       i != j && (corr_mat[j, i] = corr_mat[i, j])
     end
   end
+  #Zachowujemy przekątną PRZED diagonalizacją
+  diagonal = diag(corr_mat)
   F = eigen(Symmetric(corr_mat)) # daigonalizacja 
-  return F.values, F.vectors
+  return F.values, F.vectors, diagonal
 end
 
 """
@@ -317,8 +319,8 @@ function save_grid_liom_row(io, omega_0::Real, g::Real, eigenvector::AbstractVec
       if !first_saved
         print(io, ";")
       end
-      #@printf(io, "%d:%.16e", i,squared_coeff)
-      @printf(io, "%d:%+.16e", i, eigenvector[i])
+      @printf(io, "%d:%.16e", i,squared_coeff)
+      #@printf(io, "%d:%+.16e", i, eigenvector[i])
       first_saved = false
     end
   end
@@ -411,7 +413,7 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, Del
   println("Squared coefficient tolerance = 10^-4")
 
   # Baza jest przygotowywana tylko raz dla całej siatki
-  ops, _, _ = prepare_operator_basis(L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson, include_fermion_identity)
+  ops, ops_list, _ = prepare_operator_basis(L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson, include_fermion_identity)
   omega_values = collect(range(omega_min, omega_max; length = grid_omega))
   g_values = collect(range(g_min, g_max; length = grid_g))
 
@@ -426,6 +428,7 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, Del
   # Nazwy plików dla kolejnych eig
   filename_grids = String[]
   filename_lioms_grids = String[]
+  filename_diagonal = joinpath(grid_path, "diagonal_" * base_file_tag * ".txt")
   for eig_index in eig_first:eig_last
     file_tag = base_file_tag * "_eig$(eig_index)"
     push!(filename_grids, joinpath(grid_path, "grid_" * file_tag * ".txt"))
@@ -434,6 +437,7 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, Del
 
   io_evals = [open(filename, "w") for filename in filename_grids]   # Otwieramy pliki dla wszystkich eig
   io_lioms = [open(filename, "w") for filename in filename_lioms_grids]
+  io_diagonal = open(filename_diagonal, "w")
 
   total_points = grid_omega * grid_g
   p = Progress(total_points; desc = "Computing omega/g grid...", showspeed = true)
@@ -443,7 +447,7 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, Del
     for g in g_values
       H = XXZ_ladder(J, L, Delta, Delta_2, omega_0, g, J_prime)
       # Jedna diagonalizacja dla danego punktu
-      evals, evecs = compute_eigensystem_from_prepared_basis(H, ops)
+      evals, evecs, diagonal = compute_eigensystem_from_prepared_basis(H, ops)
       # Zapis wszystkich wybranych wartości i wektorów własnych
       for eig_index in eig_first:eig_last
         file_index = eig_index - eig_first + 1
@@ -453,6 +457,16 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, Del
         selected_eigenvector = view(evecs,:,eig_index) # wybiera jeden wektor włąasny ten odbowaidajacy eig_index
         save_grid_liom_row(io_lioms[file_index], omega_0, g, selected_eigenvector; coeff_sq_tol = 1e-4)
       end
+      # Zapis przekątnej macierzy dla danego omega_0 i g
+      @printf(io_diagonal, "%.16e\t%.16e", omega_0, g)
+      for lambda_i in diagonal
+          @printf(io_diagonal, "\t%.16e", lambda_i)
+      end
+      println(io_diagonal)
+      # Wymuszenie zapisu danych na dysk po każdym punkcie
+      flush(io_diagonal)
+      # Kontrola zapisu
+      println("Zapisano diagonal: omega_0 = $omega_0, g = $g, liczba lambd = $(length(diagonal))")
       next!(p)
     end
   end
@@ -464,7 +478,7 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, Del
   for io in io_lioms
     close(io)
   end
-
+  close(io_diagonal)
   println("Eigenvalue grids saved to:")
   for filename in filename_grids
     println(filename)
@@ -473,6 +487,8 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, Del
   for filename in filename_lioms_grids
     println(filename)
   end
+  println("Diagonal saved to:")
+  println(filename_diagonal)
 end
 
 function parse_args()
