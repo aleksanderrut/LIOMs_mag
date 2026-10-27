@@ -1,8 +1,8 @@
-
 from pathlib import Path
 import re
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
 
 # =============================================================================
@@ -10,34 +10,28 @@ import matplotlib.pyplot as plt
 # =============================================================================
 
 FOLDER_DANE = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\fun_cor_data"
+    #r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\fun_cor_data"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_9_27_10_2026"
 )
 
 # Plik z korelacjami dla losowego stanu
-PLIK = FOLDER_DANE / "Korelacje_ED_vs_g_t_PBCtrue_L_x4_N_upall_J1.0_Delta0.001_omega00.5_gmin1.0_gmax1.0_ng1_tmin0.0_tmax100.0_nt501.data"
-# Plik z korelacjami sladowymi - automatycznie ta sama seria
+PLIK = FOLDER_DANE / "Korelacje_ED_vs_g_t_PBCtrue_L_x6_N_upall_J1.0_Delta0.001_omega00.5_gmin0.0_gmax10.0_ng11_tmin0.0_tmax100.0_nt501.data"
+
+# Plik z korelacjami sladowymi
 PLIK_TRACE = PLIK.with_name(
     PLIK.name.replace("Korelacje_ED_vs_g_t_", "Korelacje_trace_ED_vs_g_t_", 1)
 )
 
 # WYBOR WARTOSCI SPRZEZENIA
-G_WYBRANE = 1.0
+G_WYBRANE = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
 
 # WYBOR FUNKCJI KORELACJI
 WYBRANE_KORELACJE = [
-    "C_slow_3_50",
-    "C_slow_8_12_62_118",
-    "C_slow_8_4_231_237_62_118_1128_1170",
+    "Q_60",
 ]
 
-# KOLORY LINII CIAGLYCH - LOSOWY STAN
-KOLORY_RANDOM = ["#1f77b4", "#ff7f0e", "#2ca02c"]
-
-# KOLORY LINII PRZERYWANYCH - TRACE
-KOLORY_TRACE = ["#87CEFA", "#E0B000", "#90EE90"]
-
 # OPCJE WYKRESU
-SKALA_Y = "linear"       # "linear" albo "log"
+SKALA_Y = "linear"
 POKAZ_PUNKTY = False
 POKAZ_SIATKE = True
 
@@ -48,6 +42,8 @@ X_MAX = None
 # ZAKRES OSI Y
 Y_MIN = None
 Y_MAX = None
+
+FIGSIZE = (12, 7)
 
 
 # =============================================================================
@@ -116,8 +112,6 @@ def wczytaj_dane(plik):
 
 def wybierz_dane_g(kolumny, dane, g_wybrane):
 
-    dostepne_g = np.unique(dane[:, kolumny.index("g")])
-
     maska = np.isclose(
         dane[:, kolumny.index("g")],
         g_wybrane,
@@ -128,11 +122,14 @@ def wybierz_dane_g(kolumny, dane, g_wybrane):
     if not np.any(maska):
         raise ValueError(
             f"Nie znaleziono danych dla g = {g_wybrane}\n"
-            f"Dostepne wartosci g: {dostepne_g}"
+            f"Dostepne wartosci g: {np.unique(dane[:, 0])}"
         )
 
     dane_g = dane[maska]
-    indeksy_sortowania = np.argsort(dane_g[:, kolumny.index("t")])
+
+    indeksy_sortowania = np.argsort(
+        dane_g[:, kolumny.index("t")]
+    )
 
     return dane_g[indeksy_sortowania]
 
@@ -149,11 +146,15 @@ def etykieta_korelacji(nazwa):
         )
         return rf"$C_{{\mathrm{{slow}},\,{indeksy}}}(t)$"
 
+    if nazwa.startswith("Q_"):
+        indeks = nazwa.removeprefix("Q_")
+        return rf"$C_{{Q_{{{indeks}}}}}(t)$"
+
     return nazwa
 
 
 # =============================================================================
-# RYSOWANIE WYKRESU
+# RYSOWANIE WSZYSTKICH g NA JEDNYM WYKRESIE
 # =============================================================================
 
 def rysuj_wykres(plik, plik_trace, wybrane_korelacje, g_wybrane):
@@ -165,72 +166,96 @@ def rysuj_wykres(plik, plik_trace, wybrane_korelacje, g_wybrane):
     kolumny_trace, dane_trace = wczytaj_dane(plik_trace)
 
     if not wybrane_korelacje:
-        raise ValueError("Nie wybrano zadnej funkcji korelacji.")
+        raise ValueError("Nie wybrano zadnej korelacji.")
+
+    if not g_wybrane:
+        raise ValueError("Nie wybrano zadnej wartosci g.")
 
     for nazwa in wybrane_korelacje:
         if nazwa not in kolumny or nazwa not in kolumny_trace:
             raise ValueError(f"Brak korelacji {nazwa} w jednym z plikow.")
 
-    if len(wybrane_korelacje) > len(KOLORY_RANDOM):
-        raise ValueError("Za malo kolorow w KOLORY_RANDOM.")
+    print("Dostepne wartosci g:", np.unique(dane[:, 0]))
+    print("Wybrane wartosci g:", g_wybrane)
 
-    if len(wybrane_korelacje) > len(KOLORY_TRACE):
-        raise ValueError("Za malo kolorow w KOLORY_TRACE.")
+    # -------------------------------------------------------------------------
+    # KOLORY - INNY KOLOR DLA KAZDEJ KOMBINACJI (g, OPERATOR)
+    # -------------------------------------------------------------------------
 
-    print("Dostepne wartosci g:", np.unique(dane[:, kolumny.index("g")]))
+    liczba_krzywych = len(g_wybrane) * len(wybrane_korelacje)
 
-    dane_g = wybierz_dane_g(kolumny, dane, g_wybrane)
-    dane_g_trace = wybierz_dane_g(kolumny_trace, dane_trace, g_wybrane)
-
-    t = dane_g[:, kolumny.index("t")]
-    t_trace = dane_g_trace[:, kolumny_trace.index("t")]
-    g_rzeczywiste = dane_g[0, kolumny.index("g")]
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    # RYSOWANIE OBU METOD DLA KAZDEGO OPERATORA
-    for i, nazwa in enumerate(wybrane_korelacje):
-
-        C_t = dane_g[:, kolumny.index(nazwa)]
-        C_trace_t = dane_g_trace[:, kolumny_trace.index(nazwa)]
-        etykieta = etykieta_korelacji(nazwa)
-
-        # Losowy stan - linia ciagla
-        ax.plot(
-            t,
-            C_t,
-            linestyle="-",
-            linewidth=1.8,
-            color=KOLORY_RANDOM[i],
-            marker="o" if POKAZ_PUNKTY else None,
-            markersize=3.5,
-            label=etykieta + " — random",
+    if liczba_krzywych <= 10:
+        kolory = plt.cm.tab10(np.arange(liczba_krzywych))
+    else:
+        kolory = plt.cm.turbo(
+            np.linspace(0.05, 0.95, liczba_krzywych)
         )
 
-        # Dokladny slad - linia przerywana
-        ax.plot(
-            t_trace,
-            C_trace_t,
-            linestyle="--",
-            linewidth=2.0,
-            color=KOLORY_TRACE[i],
-            label=etykieta + " — trace",
-        )
+    # -------------------------------------------------------------------------
+    # WYKRES
+    # -------------------------------------------------------------------------
 
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+
+    numer_koloru = 0
+
+    for g in g_wybrane:
+
+        dane_g = wybierz_dane_g(kolumny, dane, g)
+        dane_g_trace = wybierz_dane_g(kolumny_trace, dane_trace, g)
+
+        t = dane_g[:, kolumny.index("t")]
+        t_trace = dane_g_trace[:, kolumny_trace.index("t")]
+
+        g_rzeczywiste = dane_g[0, kolumny.index("g")]
+
+        for nazwa in wybrane_korelacje:
+
+            C_t = dane_g[:, kolumny.index(nazwa)]
+            C_trace_t = dane_g_trace[:, kolumny_trace.index(nazwa)]
+
+            kolor = kolory[numer_koloru]
+            numer_koloru += 1
+
+            etykieta = etykieta_korelacji(nazwa)
+
+            # RANDOM - LINIA CIAGLA
+            ax.plot(
+                t,
+                C_t,
+                color=kolor,
+                linestyle="-",
+                linewidth=1.8,
+                marker="o" if POKAZ_PUNKTY else None,
+                markersize=3.5,
+                label=rf"{etykieta}, $g={g_rzeczywiste:g}$"
+            )
+
+            # TRACE - TEN SAM KOLOR, LINIA PRZERYWANA
+            ax.plot(
+                t_trace,
+                C_trace_t,
+                color=kolor,
+                linestyle="--",
+                linewidth=1.8,
+                label="_nolegend_"
+            )
+
+    # -------------------------------------------------------------------------
     # OPISY OSI
+    # -------------------------------------------------------------------------
+
     ax.set_xlabel(r"$t$", fontsize=13)
     ax.set_ylabel(r"$C_Q(t)$", fontsize=13)
 
-    # TYTUL
     ax.set_title(
         rf"$M={parametry['M']},\; "
         rf"N_\uparrow={parametry['N_up']},\; "
         rf"J={parametry['J']},\; "
         rf"\Delta={parametry['Delta']},\; "
         rf"\omega_0={parametry['omega0']},\; "
-        rf"g={g_rzeczywiste:.4g},\; "
         rf"\mathrm{{PBC}}={parametry['PBC']}$",
-        fontsize=12,
+        fontsize=12
     )
 
     ax.set_yscale(SKALA_Y)
@@ -238,10 +263,37 @@ def rysuj_wykres(plik, plik_trace, wybrane_korelacje, g_wybrane):
     ax.set_ylim(Y_MIN, Y_MAX)
 
     ax.grid(POKAZ_SIATKE, alpha=0.3)
-    ax.legend(fontsize=9)
+
+    # -------------------------------------------------------------------------
+    # LEGENDA
+    # -------------------------------------------------------------------------
+
+    handles, labels = ax.get_legend_handles_labels()
+
+    # Dwa dodatkowe przyklady stylu linii
+    handles += [
+        Line2D([0], [0], color="black", linestyle="-", linewidth=2),
+        Line2D([0], [0], color="black", linestyle="--", linewidth=2)
+    ]
+
+    labels += [
+        "Random state",
+        "Trace"
+    ]
+
+    ax.legend(
+        handles,
+        labels,
+        loc="upper left",
+        bbox_to_anchor=(1.02, 1.0),
+        fontsize=9,
+        frameon=True,
+        ncol=1
+    )
 
     fig.tight_layout()
     plt.show()
+    plt.close(fig)
 
 
 # =============================================================================
