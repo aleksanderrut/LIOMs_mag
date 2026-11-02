@@ -9,7 +9,7 @@ import numpy as np
 
 # Dowolny plik z tej samej serii, numer eig w tej ścieżce zostanie automatycznie podmieniony.
 filename = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_7_03.09.2026\siatka_omega_g\grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\seminarium\data\heatmap\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
 )
 
 # "single" -> jeden wybrany eig
@@ -32,22 +32,22 @@ x_axis_mode = "g"
 show_constant_lines = True
 
 show_omega_line_1 = True
-omega_line_1 = 0.483
+omega_line_1 = 0.6
 
-show_omega_line_2 = True
-omega_line_2 = 1.52
+# show_omega_line_2 = True
+# omega_line_2 = 1.52
 
-show_omega_line_3 = True
-omega_line_3 = 0.621
+# show_omega_line_3 = True
+# omega_line_3 = 0.621
 
-show_g_line_1 = True
-g_line_1 = 0.483
+# show_g_line_1 = True
+# g_line_1 = 0.483
 
-show_g_line_2 = True
-g_line_2 = 1.52
+# show_g_line_2 = True
+# g_line_2 = 1.52
 
-show_g_line_3 = True
-g_line_3 = 0.759
+# show_g_line_3 = True
+# g_line_3 = 0.759
 
 constant_line_width = 2.5
 constant_line_style = "--"
@@ -57,7 +57,7 @@ constant_line_style = "--"
 # WYŚWIETLANIE / ZAPIS - FOLDER GDZIE ZAPISUJE WYKRERS
 
 show_plot = True
-save_plot = True
+save_plot = False
 dpi = 300
 cmap = "viridis"
 
@@ -259,57 +259,57 @@ if show_constant_lines:
             label=rf"$\omega_0 = {omega_line_1:.3g}$"
         )
 
-    if show_omega_line_2:
-        ax.axhline(
-            y=omega_line_2,
-            color="orange",
-            linewidth=constant_line_width,
-            linestyle=constant_line_style,
-            label=rf"$\omega_0 = {omega_line_2:.3g}$"
-        )
+    # if show_omega_line_2:
+    #     ax.axhline(
+    #         y=omega_line_2,
+    #         color="orange",
+    #         linewidth=constant_line_width,
+    #         linestyle=constant_line_style,
+    #         label=rf"$\omega_0 = {omega_line_2:.3g}$"
+    #     )
 
-    if show_omega_line_3:
-        ax.axhline(
-            y=omega_line_3,
-            color="magenta",
-            linewidth=constant_line_width,
-            linestyle=constant_line_style,
-            label=rf"$\omega_0 = {omega_line_3:.3g}$"
-        )
+    # if show_omega_line_3:
+    #     ax.axhline(
+    #         y=omega_line_3,
+    #         color="magenta",
+    #         linewidth=constant_line_width,
+    #         linestyle=constant_line_style,
+    #         label=rf"$\omega_0 = {omega_line_3:.3g}$"
+    #     )
 
-    # PIONOWE: g = const
-    if show_g_line_1:
-        x_g_1 = g_line_1 if x_axis_mode == "g" else g_line_1**2
+    # # PIONOWE: g = const
+    # if show_g_line_1:
+    #     x_g_1 = g_line_1 if x_axis_mode == "g" else g_line_1**2
 
-        ax.axvline(
-            x=x_g_1,
-            color="cyan",
-            linewidth=constant_line_width,
-            linestyle=constant_line_style,
-            label=rf"$g = {g_line_1:.3g}$"
-        )
+    #     ax.axvline(
+    #         x=x_g_1,
+    #         color="cyan",
+    #         linewidth=constant_line_width,
+    #         linestyle=constant_line_style,
+    #         label=rf"$g = {g_line_1:.3g}$"
+    #     )
 
-    if show_g_line_2:
-        x_g_2 = g_line_2 if x_axis_mode == "g" else g_line_2**2
+    # if show_g_line_2:
+    #     x_g_2 = g_line_2 if x_axis_mode == "g" else g_line_2**2
 
-        ax.axvline(
-            x=x_g_2,
-            color="white",
-            linewidth=constant_line_width,
-            linestyle=constant_line_style,
-            label=rf"$g = {g_line_2:.3g}$"
-        )
+    #     ax.axvline(
+    #         x=x_g_2,
+    #         color="white",
+    #         linewidth=constant_line_width,
+    #         linestyle=constant_line_style,
+    #         label=rf"$g = {g_line_2:.3g}$"
+    #     )
 
-    if show_g_line_3:
-        x_g_3 = g_line_3 if x_axis_mode == "g" else g_line_3**2
+    # if show_g_line_3:
+    #     x_g_3 = g_line_3 if x_axis_mode == "g" else g_line_3**2
 
-        ax.axvline(
-            x=x_g_3,
-            color="lime",
-            linewidth=constant_line_width,
-            linestyle=constant_line_style,
-            label=rf"$g = {g_line_3:.3g}$"
-        )
+    #     ax.axvline(
+    #         x=x_g_3,
+    #         color="lime",
+    #         linewidth=constant_line_width,
+    #         linestyle=constant_line_style,
+    #         label=rf"$g = {g_line_3:.3g}$"
+    #     )
 
     ax.legend(fontsize=12, loc="best")
 

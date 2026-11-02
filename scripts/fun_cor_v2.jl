@@ -820,7 +820,7 @@ function main()
         # println("Q_slow_8_12_62_118 = ", wynik_slow_2)
         # println("Q_slow_8_4_231_237_62_118_1128_1170 = ", wynik_slow_3)
 
-        operatory_korelacji = [Q_slow_3_50, Q_slow_8_12_62_118, Q_slow_8_4_231_237_62_118_1128_1170, Q_3, Q_8, Q_26, Q_60] #WYBOR OPERATOROW
+        operatory_korelacji = [Q_3, Q_8, Q_26, Q_60, Q_slow_3_50, Q_slow_8_12_62_118, Q_slow_8_4_231_237_62_118_1128_1170,] #WYBOR OPERATOROW
         wynik_H = eigen(Symmetric(H)) # DIAGONALIZACJA ED - RAZ DLA KAZDEGO g
 
         dane_korelacji = Vector{Any}(undef, length(operatory_korelacji))
