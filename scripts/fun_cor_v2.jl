@@ -66,6 +66,12 @@ end
 # Q_237 = II 130|230
 # Q_1128 = RR 123|320
 # Q_1170 = RR 123|023
+# Q_6    = RR 000|320
+# Q_10   = RR 000|230
+# Q_235  = II 130|130
+# Q_292  = RR 130|300
+# Q_298  = RR 130|030
+# Q_1121 = RR 123|000
 # 0 = I, 1 = S+, 2 = Sz, 3 = S-
 function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{Tuple{Int, Int}}, indeks_odwrotny::Dict{Tuple{Int, Int}, Int}, omega0::Real, g::Real)
     ile_stanow = length(baza_int)
@@ -139,6 +145,14 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
     Q_1128 = zeros(Float64, ile_stanow, ile_stanow)
     Q_1170 = zeros(Float64, ile_stanow, ile_stanow)
 
+    # NOWE OPERATORY
+    Q_6    = zeros(Float64, ile_stanow, ile_stanow)
+    Q_10   = zeros(Float64, ile_stanow, ile_stanow)
+    Q_235  = zeros(Float64, ile_stanow, ile_stanow)
+    Q_292  = zeros(Float64, ile_stanow, ile_stanow) # RR 130|300
+    Q_298  = zeros(Float64, ile_stanow, ile_stanow)
+    Q_1121 = zeros(Float64, ile_stanow, ile_stanow)
+
     for i in 1:ile_stanow
         state, state_bos = baza_int[i]
         # 1. OPERATORY JEDNOMIEJSCOWE Q_3 ORAZ Q_50
@@ -202,6 +216,14 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
             indeks_118 = indeks_odwrotny[(state, flipped_bos_s)]
             Q_118[indeks_118, i] += sz_ferm_t * sz_bos_t
 
+            # Q_6 = RR 000|320 ; (S-_s,2 + S+_s,2) * Sz_t,2
+            # Przeskok bozonu na s, mnozenie przez Sz na t.
+            Q_6[indeks_118, i] += sz_bos_t
+
+            # Q_10 = RR 000|230 ; Sz_s,2 * (S-_t,2 + S+_t,2)
+            # Przeskok bozonu na t, mnozenie przez Sz na s.
+            Q_10[indeks_62, i] += sz_bos_s
+
             # Q_231 = II 130|320
             # Q_237 = II 130|230
             # Oba wymagaja przeskoku fermionu s <-> t.
@@ -216,6 +238,26 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
                 # Dwa czynniki i daja i*i = -1
                 Q_231[indeks_231, i] += (-znak_ferm * znak_bos_s * sz_bos_t)
                 Q_237[indeks_237, i] += (-znak_ferm * znak_bos_t * sz_bos_s)
+
+                # Q_235 = II 130|130
+                # [i(A_f-A_f^dagger)]*[i(A_b-A_b^dagger)] = -(A_f-A_f^dagger)*(A_b-A_b^dagger)
+                # Warunek: obie nogi maja na pozycjach s,t przeciwne spiny.
+                if bos_s != bos_t
+                    flipped_bos_st = state_bos ⊻ ((1 << bit_s) | (1 << bit_t))
+                    indeks_235 = indeks_odwrotny[(new_state, flipped_bos_st)]
+                    znak_bos_st = bos_t - bos_s
+                    Q_235[indeks_235, i] += -znak_ferm * znak_bos_st
+                end
+
+                # Q_292 = RR 130|300
+                # (S+_s,1*S-_t,1 + S-_s,1*S+_t,1) * (S-_s,2 + S+_s,2)
+                # indeks_231 ma juz wlasciwe przelaczenie nog: ferm s<->t, bos s.
+                Q_292[indeks_231, i] += 1.0
+
+                # Q_298 = RR 130|030
+                # Fermionowe R: przeskok s<->t; bozonowe R: S-_t,2 + S+_t,2.
+                # indeks_237 ma juz wlasciwe przelaczenie nog: ferm s<->t, bos t.
+                Q_298[indeks_237, i] += 1.0
             end
         end
 
@@ -253,216 +295,248 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
                 new_bos_1170 = state_bos ⊻ (1 << bit_u)
                 indeks_1170 = indeks_odwrotny[(new_state, new_bos_1170)]
                 Q_1170[indeks_1170, i] += wspolczynnik
+
+                # Q_1121 = RR 123|000
+                # (S+_s,1*Sz_t,1*S-_u,1 + S-_s,1*Sz_t,1*S+_u,1) * I_bos
+                # Bez zmiany stanow na nodze bozonowej.
+                indeks_1121 = indeks_odwrotny[(new_state, state_bos)]
+                Q_1121[indeks_1121, i] += sz_ferm_t
             end
         end
     end
-    return H, Q_3, Q_4, Q_8, Q_12, Q_50, Q_62, Q_118, Q_231, Q_237, Q_1128, Q_1170, Q_26, Q_60
+    return H, Q_3, Q_4, Q_8, Q_12, Q_50, Q_62, Q_118, Q_231, Q_237, Q_1128, Q_1170, Q_26, Q_60, Q_6, Q_10, Q_235, Q_292, Q_298, Q_1121
 end
 
 # =============================================================================
 
-# WCZYTYWANIE OPERATORÓW Z ZAPISANEJ BAZY
-function wczytaj_baze_operatorow(filename)
-    lista_operatorow = []
-    for (nr, linia) in enumerate(eachline(filename))
-        pola = split(strip(linia))
-        length(pola) == 3 || error("Niepoprawny wiersz $nr")
-        # Pierwsza kolumna jest ignorowana
-        sektor = String(pola[2])
-        nogi = split(pola[3], "|")
-        length(nogi) == 2 || error("Niepoprawny zapis operatora w wierszu $nr")
+# # WCZYTYWANIE OPERATORÓW Z ZAPISANEJ BAZY
+# function wczytaj_baze_operatorow(filename)
+#     lista_operatorow = []
+#     for (nr, linia) in enumerate(eachline(filename))
+#         pola = split(strip(linia))
+#         length(pola) == 3 || error("Niepoprawny wiersz $nr")
+#         # Pierwsza kolumna jest ignorowana
+#         sektor = String(pola[2])
+#         nogi = split(pola[3], "|")
+#         length(nogi) == 2 || error("Niepoprawny zapis operatora w wierszu $nr")
 
-        # Zamiana znaków na cyfry 0,1,2,3
-        fermion_1 = [parse(Int, string(c)) for c in nogi[1]]
-        bozon_2  = [parse(Int, string(c)) for c in nogi[2]]
-        push!(lista_operatorow, (sektor, fermion_1, bozon_2))
-    end
-    println("Wczytano $(length(lista_operatorow)) operatorów")
-    return lista_operatorow
-end
+#         # Zamiana znaków na cyfry 0,1,2,3
+#         fermion_1 = [parse(Int, string(c)) for c in nogi[1]]
+#         bozon_2  = [parse(Int, string(c)) for c in nogi[2]]
+#         push!(lista_operatorow, (sektor, fermion_1, bozon_2))
+#     end
+#     println("Wczytano $(length(lista_operatorow)) operatorów")
+#     return lista_operatorow
+# end
 
-# SPRZĘŻENIE HERMITOWSKIE
-function sprzezenie_operatora(lista)
-    lista_hc = copy(lista)
-    for i in eachindex(lista)
-        if lista[i] == 1
-            lista_hc[i] = 3       # S+ -> S-
-        elseif lista[i] == 3
-            lista_hc[i] = 1       # S- -> S+
-        else
-            lista_hc[i] = lista[i]  # I i Sz bez zmian
-        end
-    end
-    return lista_hc
-end
+# # SPRZĘŻENIE HERMITOWSKIE
+# function sprzezenie_operatora(lista)
+#     lista_hc = copy(lista)
+#     for i in eachindex(lista)
+#         if lista[i] == 1
+#             lista_hc[i] = 3       # S+ -> S-
+#         elseif lista[i] == 3
+#             lista_hc[i] = 1       # S- -> S+
+#         else
+#             lista_hc[i] = lista[i]  # I i Sz bez zmian
+#         end
+#     end
+#     return lista_hc
+# end
 
-# ROZWINIĘCIE JEDNEJ NOGI W SEKTORZE R LUB I
-function rozwin_noge(lista, sektor)
-    # Sprzężenie hermitowskie operatora
-    lista_hc = sprzezenie_operatora(lista)
-    if sektor == 'R'
-        wsp_1 = 1.0
-        wsp_2 = 1.0
-    elseif sektor == 'I'
-        wsp_1 =  im
-        wsp_2 = -im
-    end
-    # Każdy element: (operator, współczynnik)
-    wyrazy = [(lista, wsp_1), (lista_hc, wsp_2)]
-    return wyrazy
-end
+# # ROZWINIĘCIE JEDNEJ NOGI W SEKTORZE R LUB I
+# function rozwin_noge(lista, sektor)
+#     # Sprzężenie hermitowskie operatora
+#     lista_hc = sprzezenie_operatora(lista)
+#     if sektor == 'R'
+#         wsp_1 = 1.0
+#         wsp_2 = 1.0
+#     elseif sektor == 'I'
+#         wsp_1 =  im
+#         wsp_2 = -im
+#     end
+#     # Każdy element: (operator, współczynnik)
+#     wyrazy = [(lista, wsp_1), (lista_hc, wsp_2)]
+#     return wyrazy
+# end
 
-# ROZWINIĘCIE CAŁEGO OPERATORA NA DWÓCH NOGACH
-function rozwin_operator(sektor, fermion_1, bozon_2)
-    sektor_fermion = sektor[1]
-    fermion_rozwiniety = rozwin_noge(fermion_1, sektor_fermion)
-    sektor_bozon = sektor[2]
-    bozon_rozwiniety = rozwin_noge(bozon_2, sektor_bozon)
-    wyrazy = []
+# # ROZWINIĘCIE CAŁEGO OPERATORA NA DWÓCH NOGACH
+# function rozwin_operator(sektor, fermion_1, bozon_2)
+#     sektor_fermion = sektor[1]
+#     fermion_rozwiniety = rozwin_noge(fermion_1, sektor_fermion)
+#     sektor_bozon = sektor[2]
+#     bozon_rozwiniety = rozwin_noge(bozon_2, sektor_bozon)
+#     wyrazy = []
 
-    # Każdy wyraz fermionowy mnożymy przez każdy wyraz bozonowy
-    for wyraz_fermion in fermion_rozwiniety
-        # Rozdzielenie operatora i jego współczynnika
-        operator_fermion = wyraz_fermion[1]
-        wspolczynnik_fermion = wyraz_fermion[2]
-        for wyraz_bozon in bozon_rozwiniety
-            # Rozdzielenie operatora i jego współczynnika
-            operator_bozon = wyraz_bozon[1]
-            wspolczynnik_bozon = wyraz_bozon[2]
+#     # Każdy wyraz fermionowy mnożymy przez każdy wyraz bozonowy
+#     for wyraz_fermion in fermion_rozwiniety
+#         # Rozdzielenie operatora i jego współczynnika
+#         operator_fermion = wyraz_fermion[1]
+#         wspolczynnik_fermion = wyraz_fermion[2]
+#         for wyraz_bozon in bozon_rozwiniety
+#             # Rozdzielenie operatora i jego współczynnika
+#             operator_bozon = wyraz_bozon[1]
+#             wspolczynnik_bozon = wyraz_bozon[2]
 
-            wspolczynnik = wspolczynnik_fermion * wspolczynnik_bozon # Mnożenie współczynników
+#             wspolczynnik = wspolczynnik_fermion * wspolczynnik_bozon # Mnożenie współczynników
 
-            # Zapisanie wyrazu: (operator fermionowy, operator bozonowy, współczynnik)
-            push!(wyrazy, (operator_fermion, operator_bozon, wspolczynnik))
-        end
-    end
-    return wyrazy
-end
+#             # Zapisanie wyrazu: (operator fermionowy, operator bozonowy, współczynnik)
+#             push!(wyrazy, (operator_fermion, operator_bozon, wspolczynnik))
+#         end
+#     end
+#     return wyrazy
+# end
 
-# DZIAŁANIE JEDNEGO STRINGU NA STAN BITOWY
-function dzialaj_na_stan(state, operatory, przesuniecie, L)
-    new_state = state
-    amplituda = 1.0
-    for (x, op) in enumerate(operatory)
+# # DZIAŁANIE JEDNEGO STRINGU NA STAN BITOWY
+# function dzialaj_na_stan(state, operatory, przesuniecie, L)
+#     new_state = state
+#     amplituda = 1.0
+#     for (x, op) in enumerate(operatory)
 
-        op == 0 && continue
+#         op == 0 && continue
 
-        # Numer bitu, z uwzględnieniem translacji
-        bit_s = mod(przesuniecie + x - 1, L)
+#         # Numer bitu, z uwzględnieniem translacji
+#         bit_s = mod(przesuniecie + x - 1, L)
 
-        spin = (new_state >> bit_s) & 1
+#         spin = (new_state >> bit_s) & 1
 
-        if op == 1
-            # S+ |0> = |1>
-            # S+ |1> = 0
-            spin == 1 && return nothing
+#         if op == 1
+#             # S+ |0> = |1>
+#             # S+ |1> = 0
+#             spin == 1 && return nothing
 
-            new_state = new_state ⊻ (1 << bit_s)
+#             new_state = new_state ⊻ (1 << bit_s)
 
-        elseif op == 3
-            # S- |1> = |0>
-            # S- |0> = 0
-            spin == 0 && return nothing
+#         elseif op == 3
+#             # S- |1> = |0>
+#             # S- |0> = 0
+#             spin == 0 && return nothing
 
-            new_state = new_state ⊻ (1 << bit_s)
+#             new_state = new_state ⊻ (1 << bit_s)
 
-        elseif op == 2
-            # Sz |0> = -1/2 |0>
-            # Sz |1> = +1/2 |1>
-            amplituda *= spin - 0.5
-        end
-    end
+#         elseif op == 2
+#             # Sz |0> = -1/2 |0>
+#             # Sz |1> = +1/2 |1>
+#             amplituda *= spin - 0.5
+#         end
+#     end
 
-    return new_state, amplituda
-end
+#     return new_state, amplituda
+# end
 
-# GENEROWANIE MACIERZY OPERATORA O_i
-function generuj_operator_z_bazy(
-    numer,
-    lista_operatorow,
-    L,
-    baza_int,
-    indeks_odwrotny;
-    PBC=true,
-)
+# # GENEROWANIE MACIERZY OPERATORA O_i
+# function generuj_operator_z_bazy(
+#     numer,
+#     lista_operatorow,
+#     L,
+#     baza_int,
+#     indeks_odwrotny;
+#     PBC=true,
+# )
 
-    # Odczyt operatora o podanym numerze
-    1 <= numer <= length(lista_operatorow) ||
-        error("Numer operatora poza zakresem")
+#     # Odczyt operatora o podanym numerze
+#     1 <= numer <= length(lista_operatorow) ||
+#         error("Numer operatora poza zakresem")
 
-    sektor, gora, dol = lista_operatorow[numer]
+#     sektor, gora, dol = lista_operatorow[numer]
 
-    length(gora) <= L ||
-        error("Długość operatora jest większa niż L")
+#     length(gora) <= L ||
+#         error("Długość operatora jest większa niż L")
 
-    # Rozwinięcie RR, RI, IR lub II
-    wyrazy = rozwin_operator(sektor, gora, dol)
+#     # Rozwinięcie RR, RI, IR lub II
+#     wyrazy = rozwin_operator(sektor, gora, dol)
 
-    # Faktyczny zasięg operatora
-    zasieg = findlast(
-        x -> gora[x] != 0 || dol[x] != 0,
-        eachindex(gora)
-    )
+#     # Faktyczny zasięg operatora
+#     zasieg = findlast(
+#         x -> gora[x] != 0 || dol[x] != 0,
+#         eachindex(gora)
+#     )
 
-    isnothing(zasieg) &&
-        error("Operator identycznościowy")
+#     isnothing(zasieg) &&
+#         error("Operator identycznościowy")
 
-    # Translacje:
-    # PBC: wszystkie L położeń
-    # OBC: tylko położenia mieszczące się w łańcuchu
-    przesuniecia = PBC ? (0:L-1) : (0:L-zasieg)
+#     # Translacje:
+#     # PBC: wszystkie L położeń
+#     # OBC: tylko położenia mieszczące się w łańcuchu
+#     przesuniecia = PBC ? (0:L-1) : (0:L-zasieg)
 
-    ile_stanow = length(baza_int)
+#     ile_stanow = length(baza_int)
 
-    # ComplexF64 obsługuje również operatory RI i IR
-    Q = zeros(ComplexF64, ile_stanow, ile_stanow)
+#     # ComplexF64 obsługuje również operatory RI i IR
+#     Q = zeros(ComplexF64, ile_stanow, ile_stanow)
 
-    # Pętla po stanach początkowych
-    for i in 1:ile_stanow
+#     # Pętla po stanach początkowych
+#     for i in 1:ile_stanow
 
-        state, state_bos = baza_int[i]
+#         state, state_bos = baza_int[i]
 
-        # Suma po translacjach
-        for przesuniecie in przesuniecia
+#         # Suma po translacjach
+#         for przesuniecie in przesuniecia
 
-            # Suma po wyrazach rozwinięcia symetrii
-            for (op_gora, op_dol, wsp) in wyrazy
+#             # Suma po wyrazach rozwinięcia symetrii
+#             for (op_gora, op_dol, wsp) in wyrazy
 
-                wynik_f = dzialaj_na_stan(
-                    state, op_gora, przesuniecie, L
-                )
+#                 wynik_f = dzialaj_na_stan(
+#                     state, op_gora, przesuniecie, L
+#                 )
 
-                wynik_f === nothing && continue
+#                 wynik_f === nothing && continue
 
-                wynik_b = dzialaj_na_stan(
-                    state_bos, op_dol, przesuniecie, L
-                )
+#                 wynik_b = dzialaj_na_stan(
+#                     state_bos, op_dol, przesuniecie, L
+#                 )
 
-                wynik_b === nothing && continue
+#                 wynik_b === nothing && continue
 
-                new_state, amp_f = wynik_f
-                new_state_bos, amp_b = wynik_b
+#                 new_state, amp_f = wynik_f
+#                 new_state_bos, amp_b = wynik_b
 
-                # Szukanie indeksu nowego stanu w bazie
-                new_index = get(
-                    indeks_odwrotny,
-                    (new_state, new_state_bos),
-                    0
-                )
+#                 # Szukanie indeksu nowego stanu w bazie
+#                 new_index = get(
+#                     indeks_odwrotny,
+#                     (new_state, new_state_bos),
+#                     0
+#                 )
 
-                # Jeśli stan wypada poza wybrany sektor
-                new_index == 0 && continue
+#                 # Jeśli stan wypada poza wybrany sektor
+#                 new_index == 0 && continue
 
-                # Wpis do macierzy operatora
-                Q[new_index, i] += wsp * amp_f * amp_b
+#                 # Wpis do macierzy operatora
+#                 Q[new_index, i] += wsp * amp_f * amp_b
 
-            end
-        end
-    end
-    return Q
-end
+#             end
+#         end
+#     end
+#     return Q
+# end
+#
+# =============================================================================
 
 # =============================================================================
+# ODCZYT Q_292 Z BAZY OPERATOROW
+# Numer Q_292 oznacza 292. WIERSZ pliku. Pierwsza kolumna jest ignorowana.
+# Funkcja jest niezalezna od zakomentowanej wyzej implementacji.
+# =============================================================================
+# function wczytaj_opis_operatora_z_bazy(plik, numer::Int)
+#     isfile(plik) || error("Nie znaleziono pliku bazy dla Q_$numer: $plik")
+#     for (nr, linia) in enumerate(eachline(plik))
+#         nr == numer || continue
+#         pola = split(strip(linia))
+#         length(pola) == 3 || error("Niepoprawny format wiersza $numer w pliku bazy")
+#         sektor = String(pola[2])
+#         sektor in ("RR", "RI", "IR", "II") || error("Nieznany sektor Q_$numer: $sektor")
+#         nogi = split(pola[3], "|")
+#         length(nogi) == 2 || error("Niepoprawny zapis nog Q_$numer: $(pola[3])")
+#         gora = [parse(Int, string(c)) for c in nogi[1]]
+#         dol = [parse(Int, string(c)) for c in nogi[2]]
+#         length(gora) == length(dol) || error("Rozne dlugosci nog dla Q_$numer")
+#         all(x -> 0 <= x <= 3, gora) && all(x -> 0 <= x <= 3, dol) ||
+#             error("Niedozwolona cyfra w Q_$numer")
+#         println("Q_$numer = $sektor $(pola[3]) (wiersz $nr pliku bazy)")
+#         return sektor, gora, dol
+#     end
+#     error("Brak wiersza $numer w pliku bazy: $plik")
+# end
 
 # NORMALIZACJA OPERATORA
 function normalizuj_operator(Q)
@@ -531,11 +605,11 @@ function save_data(data, filename, PBC; kwargs...)
     println("Zapisano do pliku: ", filepath)
 end
 
-# ZAPIS MACIERZY Tr([H,Q]†[H,Q])/D VS g
-function save_wyniki_vs_g(wyniki, kolumny, PBC; kwargs...)
+# ZAPIS MACIERZY Tr([H,Q]†[H,Q])/D VS g / omega0
+function save_wyniki_vs_g(wyniki, kolumny, PBC; nazwa="Tr_komutatorow_vs_g", kwargs...)
     folder = raw"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\fun_cor_data"
     mkpath(folder)
-    filename_full = "Tr_komutatorow_vs_g_PBC$(PBC)"
+    filename_full = "$(nazwa)_PBC$(PBC)"
     for (key, value) in kwargs
         filename_full *= "_$(key)$(value)"
     end
@@ -580,7 +654,7 @@ function funkcja_korelacji_trace_ED(dane, fazy)
     return real(C_t) / length(fazy)
 end
 
-# ZAPIS FUNKCJI KORELACJI ED VS g I t
+# ZAPIS FUNKCJI KORELACJI ED VS g / omega0 I t
 function save_korelacje_ED(wyniki_korelacji, kolumny_korelacji, PBC; nazwa="Korelacje_ED_vs_g_t", kwargs...)
     folder = raw"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\fun_cor_data"
     mkpath(folder)
@@ -612,7 +686,7 @@ function main()
     # g_POINTS = 41
     # g_values = range(g_MIN, g_MAX, length=g_POINTS)
 
-    g_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
+    g_values = [0.75]
     g_MIN = minimum(g_values)
     g_MAX = maximum(g_values)
     g_POINTS = length(g_values)
@@ -651,6 +725,20 @@ function main()
     a3_1128 = sqrt(W3_1128)
     a3_1170 = sqrt(W3_1170)
 
+    # CZWARTY WOLNY MOD: podane WSPOLCZYNNIKI (nie kwadraty wag)
+    c4_8   = +9.9654870456974975e-01
+    c4_118 = -5.3218725317609773e-02
+    c4_62  = -5.3218725317609732e-02
+    c4_4   = -3.3646755004379414e-02
+
+    # PIATY WOLNY MOD: podane WSPOLCZYNNIKI (nie kwadraty wag)
+    c5_298  = +6.3817744742265958e-01
+    c5_292  = +6.3817744742265947e-01
+    c5_1121 = -4.2780884225378929e-01
+    c5_235  = -3.1705977742643089e-02
+    c5_10   = -1.9813416356805943e-02
+    c5_6    = -1.9813416356805828e-02
+
     # GENEROWANIE BAZY - cała magentyzacja
     mag = :all
     N_up = "all"
@@ -672,18 +760,56 @@ function main()
         baza_data[i, 4] = baza_bit[i][1]
         baza_data[i, 5] = baza_bit[i][2]
     end
-    save_data(baza_data, "Baza", PBC; L_x=M, N_up, J, Delta, omega0)
+    Psi_0_wspolne = losuj_q1_gauss(length(baza_int))
 
-    # Pierwsza kolumna: g. Wszystkie pozostale: Tr([H,Q]†[H,Q])/D.
-    kolumny = [
-        "g",
-        "Q_3", "Q_4", "Q_8", "Q_12", "Q_26", "Q_50", "Q_60",
-        "Q_62", "Q_118", "Q_231", "Q_237", "Q_1128", "Q_1170",
+    # PETLA PO omega_0; tryb pojedynczej wartosci z argumentu -w:
+    #omega0_values = [omega0]
+    # Aby przeskanowac wiele omega_0, odkomentuj jedna z ponizszych linii
+    # i zakomentuj powyzsze omega0_values = [omega0]:
+    omega0_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
+    # omega0_values = range(0.0, 2.0, length=11)
+    # Dla aktywnego skanu zapisujemy jeden zestaw plikow z pelna siatka parametrow.
+    # Tryb zapisu dobierany automatycznie do aktywnych petli:
+    # - wiele g, jedna omega0:           g | dane ...     oraz g | t | korelacje ...
+    # - wiele omega0, jedno g:           omega0 | dane ... oraz omega0 | t | korelacje ...
+    # - wiele omega0 i wiele g:          omega0 | g | dane ... / omega0 | g | t | ...
+    # Nie usuwamy zadnego parametru przy skanowaniu dwuwymiarowym.
+    skan_omega0 = length(omega0_values) > 1
+    skan_g = length(g_values) > 1
+    if skan_omega0 && skan_g
+        kolumny_parametrow = ["omega0", "g"]
+        nazwa_skanu = "omega0_g"
+    elseif skan_omega0
+        kolumny_parametrow = ["omega0"]
+        nazwa_skanu = "omega0"
+    else
+        kolumny_parametrow = ["g"]
+        nazwa_skanu = "g"
+    end
+    liczba_kolumn_parametrow = length(kolumny_parametrow)
+    liczba_punktow = length(omega0_values) * g_POINTS
+    parametry_pliku = if skan_omega0
+        (L_x=M, N_up=N_up, J=J, Delta=Delta,
+         gmin=g_MIN, gmax=g_MAX, ng=g_POINTS,
+         omega0min=minimum(omega0_values), omega0max=maximum(omega0_values), nw=length(omega0_values))
+    else
+        (L_x=M, N_up=N_up, J=J, Delta=Delta, omega0=first(omega0_values),
+         gmin=g_MIN, gmax=g_MAX, ng=g_POINTS)
+    end
+
+    # Pierwsze kolumny: parametry skanowania. Pozostale: Tr([H,Q]†[H,Q])/D.
+    # Zwykle operatory Q_i zapisujemy w kolejnosci rosnacych indeksow.
+    kolumny = vcat(kolumny_parametrow, [
+        "Q_3", "Q_4", "Q_6", "Q_8", "Q_10", "Q_12", "Q_26", "Q_50",
+        "Q_60", "Q_62", "Q_118", "Q_231", "Q_235", "Q_237", "Q_292",
+        "Q_298", "Q_1121", "Q_1128", "Q_1170",
         "Q_slow_3_50",
+        "Q_slow_8_4_231_237_62_118_1128_1170",
         "Q_slow_8_12_62_118",
-        "Q_slow_8_4_231_237_62_118_1128_1170"
-    ]
-    wyniki = Matrix{Float64}(undef, g_POINTS, length(kolumny))
+        "Q_slow_8_118_62_4",
+        "Q_slow_298_292_1121_235_10_6"
+    ])
+    wyniki = Matrix{Float64}(undef, liczba_punktow, length(kolumny))
 
     # PARAMETRY KORELACJI CZASOWYCH
     t_MIN = 0.0
@@ -691,167 +817,226 @@ function main()
     t_POINTS = 501
     t_values = range(t_MIN, t_MAX, length=t_POINTS)
 
-    # Pierwsza kolumna: g. Wszystkie pozostałe: C_Q(t) = Re⟨Ψ₀|e^(iHt) Q e^(-iHt) Q|Ψ₀⟩
-    kolumny_korelacji = [
-        "g",
+    # Pierwsze kolumny: parametry, potem czas t. Pozostale: C_Q(t) = Re⟨Ψ₀|e^(iHt) Q e^(-iHt) Q|Ψ₀⟩
+    kolumny_korelacji = vcat(kolumny_parametrow, [
         "t",
-        "Q_3",
-        "Q_8",
-        "Q_26",
-        "Q_60",
+        "Q_3", "Q_6", "Q_8", "Q_10", "Q_26", "Q_60",
+        "Q_235", "Q_292", "Q_298", "Q_1121",
         "C_slow_3_50",
+        "C_slow_8_4_231_237_62_118_1128_1170",
         "C_slow_8_12_62_118",
-        "C_slow_8_4_231_237_62_118_1128_1170"
-    ]
+        "C_slow_8_118_62_4",
+        "C_slow_298_292_1121_235_10_6"
+    ])
 
-    # Losowy stan początkowy — ten sam dla wszystkich g
-    Psi_0 = losuj_q1_gauss(length(baza_int))
+    # Losowy stan poczatkowy — ten sam dla wszystkich omega_0 i g
+    Psi_0 = Psi_0_wspolne
 
     # Macierz na wyniki funkcji korelacji
-    wyniki_korelacji = Matrix{Float64}(undef, g_POINTS * t_POINTS, length(kolumny_korelacji))
-    wyniki_korelacji_trace = Matrix{Float64}(undef, g_POINTS * t_POINTS, length(kolumny_korelacji))
+    wyniki_korelacji = Matrix{Float64}(undef, liczba_punktow * t_POINTS, length(kolumny_korelacji))
+    wyniki_korelacji_trace = Matrix{Float64}(undef, liczba_punktow * t_POINTS, length(kolumny_korelacji))
 
-    #pętla po g =============================================================================================
-    for (k, g) in enumerate(g_values)
-        println("Punkt: ", k, "/", g_POINTS)
+    for (k_omega, omega0) in enumerate(omega0_values)
+        println("Obliczenia dla omega_0 = ", omega0)
 
-        #generowane Ham i wszystkich operatorów
-        H, Q_3, Q_4, Q_8, Q_12, Q_50, Q_62, Q_118, Q_231, Q_237, Q_1128, Q_1170, Q_26, Q_60 =
-        gen_ham_xxz(M, J, Delta, PBC, baza_int, indeks_odwrotny, omega0, g)
+        save_data(baza_data, "Baza", PBC; L_x=M, N_up, J, Delta, omega0)
 
-        # save_data(H, "Ham", PBC; L_x=M, N_up, J, Delta, omega0)
-        # save_data(Q_3, "Q_3", PBC; L_x=M, N_up, J, Delta, omega0)
-        # save_data(Q_4, "Q_4", PBC; L_x=M, N_up, J, Delta, omega0)
-        # save_data(Q_8, "Q_8", PBC; L_x=M, N_up, J, Delta, omega0)
+        #pętla po g =============================================================================================
+        for (k, g) in enumerate(g_values)
+            println("Punkt: ", k, "/", g_POINTS)
+            wiersz_parametrow = (k_omega - 1) * g_POINTS + k
+            parametry_wiersza = skan_omega0 ? (skan_g ? [omega0, g] : [omega0]) : [g]
 
-        if k == 1
-            D = size(H, 1)
-            println("--- NORMY KWADRATOWE HS ---")
-            println("Q_3   = ", sum(abs2, Q_3) / D)
-            println("Q_4   = ", sum(abs2, Q_4) / D)
-            println("Q_8   = ", sum(abs2, Q_8) / D)
-            println("Q_12  = ", sum(abs2, Q_12) / D)
-            println("Q_26   = ", sum(abs2, Q_26) / D)
-            println("Q_50  = ", sum(abs2, Q_50) / D)
-            println("Q_60   = ", sum(abs2, Q_60) / D)
-            println("Q_62  = ", sum(abs2, Q_62) / D)
-            println("Q_118 = ", sum(abs2, Q_118) / D)
-            println("Q_231 = ", sum(abs2, Q_231) / D)
-            println("Q_237 = ", sum(abs2, Q_237) / D)
-            println("Q_1128 = ", sum(abs2, Q_1128) / D)
-            println("Q_1170 = ", sum(abs2, Q_1170) / D)
-        end
+            #generowane Ham i wszystkich operatorów
+            H, Q_3, Q_4, Q_8, Q_12, Q_50, Q_62, Q_118, Q_231, Q_237, Q_1128, Q_1170, Q_26, Q_60, Q_6, Q_10, Q_235, Q_292, Q_298, Q_1121 =
+            gen_ham_xxz(M, J, Delta, PBC, baza_int, indeks_odwrotny, omega0, g)
 
-        Q_3   = normalizuj_operator(Q_3)
-        Q_4   = normalizuj_operator(Q_4)
-        Q_8   = normalizuj_operator(Q_8)
-        Q_12  = normalizuj_operator(Q_12)
-        Q_26  = normalizuj_operator(Q_26)
-        Q_50  = normalizuj_operator(Q_50)
-        Q_60  = normalizuj_operator(Q_60)
-        Q_62  = normalizuj_operator(Q_62)
-        Q_118 = normalizuj_operator(Q_118)
-        Q_231 = normalizuj_operator(Q_231)
-        Q_237 = normalizuj_operator(Q_237)
-        Q_1128 = normalizuj_operator(Q_1128)
-        Q_1170 = normalizuj_operator(Q_1170)
+            # save_data(H, "Ham", PBC; L_x=M, N_up, J, Delta, omega0)
+            # save_data(Q_3, "Q_3", PBC; L_x=M, N_up, J, Delta, omega0)
+            # save_data(Q_4, "Q_4", PBC; L_x=M, N_up, J, Delta, omega0)
+            # save_data(Q_8, "Q_8", PBC; L_x=M, N_up, J, Delta, omega0)
 
-        Q_slow_3_50 = +a_3 * Q_3 + a_50 * Q_50
-        Q_slow_8_12_62_118 = (-a_8 * Q_8 -a_12 * Q_12 -a_118 * Q_118 -a_62 * Q_62)
-        Q_slow_8_4_231_237_62_118_1128_1170 = (+a3_8 * Q_8 +a3_4 * Q_4 -a3_231 * Q_231 +a3_237 * Q_237 -a3_62 * Q_62 -a3_118 * Q_118 +a3_1128 * Q_1128 +a3_1170 * Q_1170)
+            if k == 1
+                D = size(H, 1)
+                println("--- NORMY KWADRATOWE HS ---")
+                println("Q_3   = ", sum(abs2, Q_3) / D)
+                println("Q_4   = ", sum(abs2, Q_4) / D)
+                println("Q_8   = ", sum(abs2, Q_8) / D)
+                println("Q_12  = ", sum(abs2, Q_12) / D)
+                println("Q_26   = ", sum(abs2, Q_26) / D)
+                println("Q_50  = ", sum(abs2, Q_50) / D)
+                println("Q_60   = ", sum(abs2, Q_60) / D)
+                println("Q_62  = ", sum(abs2, Q_62) / D)
+                println("Q_118 = ", sum(abs2, Q_118) / D)
+                println("Q_231 = ", sum(abs2, Q_231) / D)
+                println("Q_237 = ", sum(abs2, Q_237) / D)
+                println("Q_1128 = ", sum(abs2, Q_1128) / D)
+                println("Q_1170 = ", sum(abs2, Q_1170) / D)
+                println("Q_6 = ", sum(abs2, Q_6) / D)
+                println("Q_10 = ", sum(abs2, Q_10) / D)
+                println("Q_235 = ", sum(abs2, Q_235) / D)
+                println("Q_292 = ", sum(abs2, Q_292) / D)
+                println("Q_298 = ", sum(abs2, Q_298) / D)
+                println("Q_1121 = ", sum(abs2, Q_1121) / D)
+            end
 
-        if k == 1
-            D = size(H, 1)
-            println("--- NORMY KWADRATOWE HS ---")
-            println("Q_3   = ", sum(abs2, Q_3) / D)
-            println("Q_4   = ", sum(abs2, Q_4) / D)
-            println("Q_8   = ", sum(abs2, Q_8) / D)
-            println("Q_12  = ", sum(abs2, Q_12) / D)
-            println("Q_26   = ", sum(abs2, Q_26) / D)
-            println("Q_50  = ", sum(abs2, Q_50) / D)
-            println("Q_60   = ", sum(abs2, Q_60) / D)
-            println("Q_62  = ", sum(abs2, Q_62) / D)
-            println("Q_118 = ", sum(abs2, Q_118) / D)
-            println("Q_231 = ", sum(abs2, Q_231) / D)
-            println("Q_237 = ", sum(abs2, Q_237) / D)
-            println("Q_1128 = ", sum(abs2, Q_1128) / D)
-            println("Q_1170 = ", sum(abs2, Q_1170) / D)
+            Q_3   = normalizuj_operator(Q_3)
+            Q_4   = normalizuj_operator(Q_4)
+            Q_8   = normalizuj_operator(Q_8)
+            Q_12  = normalizuj_operator(Q_12)
+            Q_26  = normalizuj_operator(Q_26)
+            Q_50  = normalizuj_operator(Q_50)
+            Q_60  = normalizuj_operator(Q_60)
+            Q_62  = normalizuj_operator(Q_62)
+            Q_118 = normalizuj_operator(Q_118)
+            Q_231 = normalizuj_operator(Q_231)
+            Q_237 = normalizuj_operator(Q_237)
+            Q_1128 = normalizuj_operator(Q_1128)
+            Q_1170 = normalizuj_operator(Q_1170)
+            Q_6 = normalizuj_operator(Q_6)
+            Q_10 = normalizuj_operator(Q_10)
+            Q_235 = normalizuj_operator(Q_235)
+            Q_292 = normalizuj_operator(Q_292)
+            Q_298 = normalizuj_operator(Q_298)
+            Q_1121 = normalizuj_operator(Q_1121)
 
-            println("Q_slow_3_50 = ", sum(abs2, Q_slow_3_50) / D)
-            println("Q_slow_8_12_62_118 = ", sum(abs2, Q_slow_8_12_62_118) / D)
-            println("Q_slow_8_4_231_237_62_118_1128_1170 = ", sum(abs2, Q_slow_8_4_231_237_62_118_1128_1170) / D)
+            Q_slow_3_50 = +a_3 * Q_3 + a_50 * Q_50
+            Q_slow_8_12_62_118 = (-a_8 * Q_8 -a_12 * Q_12 -a_118 * Q_118 -a_62 * Q_62)
+            Q_slow_8_4_231_237_62_118_1128_1170 = (+a3_8 * Q_8 +a3_4 * Q_4 -a3_231 * Q_231 +a3_237 * Q_237 -a3_62 * Q_62 -a3_118 * Q_118 +a3_1128 * Q_1128 +a3_1170 * Q_1170)
 
-            println("Suma wag 3,50 = ",W_3 + W_50)
-            println("Suma wag 8,12,62,118 = ",W_8 + W_12 + W_62 + W_118)
-            println("Suma wag 8,4,231,237,62,118,1128,1170 = ",W3_8 + W3_4 + W3_231 + W3_237 + W3_62 + W3_118 + W3_1128 + W3_1170)
-        end
+            # DWA NOWE LIOMSY: wspolczynniki sa podane bezposrednio ze znakami.
+            Q_slow_8_118_62_4 = c4_8 * Q_8 + c4_118 * Q_118 + c4_62 * Q_62 + c4_4 * Q_4
+            Q_slow_298_292_1121_235_10_6 = c5_298 * Q_298 + c5_292 * Q_292 + c5_1121 * Q_1121 + c5_235 * Q_235 + c5_10 * Q_10 + c5_6 * Q_6
 
-        C_3, wynik_3 = oblicz_komutator(H, Q_3)
-        C_4, wynik_4 = oblicz_komutator(H, Q_4)
-        C_8, wynik_8 = oblicz_komutator(H, Q_8)
-        C_12, wynik_12 = oblicz_komutator(H, Q_12)
-        C_26, wynik_26 = oblicz_komutator(H, Q_26)
-        C_50, wynik_50 = oblicz_komutator(H, Q_50)
-        C_60, wynik_60 = oblicz_komutator(H, Q_60)
-        C_62, wynik_62 = oblicz_komutator(H, Q_62)
-        C_118, wynik_118 = oblicz_komutator(H, Q_118)
-        C_231, wynik_231 = oblicz_komutator(H, Q_231)
-        C_237, wynik_237 = oblicz_komutator(H, Q_237)
-        C_1128, wynik_1128 = oblicz_komutator(H, Q_1128)
-        C_1170, wynik_1170 = oblicz_komutator(H, Q_1170)
-        C_slow_1, wynik_slow_1 = oblicz_komutator(H, Q_slow_3_50)
-        C_slow_2, wynik_slow_2 = oblicz_komutator(H, Q_slow_8_12_62_118)
-        C_slow_3, wynik_slow_3 = oblicz_komutator(H, Q_slow_8_4_231_237_62_118_1128_1170)
+            if k == 1
+                D = size(H, 1)
+                println("--- NORMY KWADRATOWE HS ---")
+                println("Q_3   = ", sum(abs2, Q_3) / D)
+                println("Q_4   = ", sum(abs2, Q_4) / D)
+                println("Q_8   = ", sum(abs2, Q_8) / D)
+                println("Q_12  = ", sum(abs2, Q_12) / D)
+                println("Q_26   = ", sum(abs2, Q_26) / D)
+                println("Q_50  = ", sum(abs2, Q_50) / D)
+                println("Q_60   = ", sum(abs2, Q_60) / D)
+                println("Q_62  = ", sum(abs2, Q_62) / D)
+                println("Q_118 = ", sum(abs2, Q_118) / D)
+                println("Q_231 = ", sum(abs2, Q_231) / D)
+                println("Q_237 = ", sum(abs2, Q_237) / D)
+                println("Q_1128 = ", sum(abs2, Q_1128) / D)
+                println("Q_1170 = ", sum(abs2, Q_1170) / D)
+                println("Q_6 = ", sum(abs2, Q_6) / D)
+                println("Q_10 = ", sum(abs2, Q_10) / D)
+                println("Q_235 = ", sum(abs2, Q_235) / D)
+                println("Q_292 = ", sum(abs2, Q_292) / D)
+                println("Q_298 = ", sum(abs2, Q_298) / D)
+                println("Q_1121 = ", sum(abs2, Q_1121) / D)
 
-        wyniki[k, :] = [g,wynik_3,wynik_4,wynik_8,wynik_12,wynik_26,wynik_50,wynik_60,wynik_62,wynik_118,wynik_231,wynik_237,wynik_1128,wynik_1170,wynik_slow_1,wynik_slow_2,wynik_slow_3]
+                println("Q_slow_3_50 = ", sum(abs2, Q_slow_3_50) / D)
+                println("Q_slow_8_12_62_118 = ", sum(abs2, Q_slow_8_12_62_118) / D)
+                println("Q_slow_8_4_231_237_62_118_1128_1170 = ", sum(abs2, Q_slow_8_4_231_237_62_118_1128_1170) / D)
+                println("Q_slow_8_118_62_4 = ", sum(abs2, Q_slow_8_118_62_4) / D)
+                println("Q_slow_298_292_1121_235_10_6 = ", sum(abs2, Q_slow_298_292_1121_235_10_6) / D)
 
-        # println("Q_3 = ", wynik_3)
-        # println("Q_4 = ", wynik_4)
-        # println("Q_8 = ", wynik_8)
-        # println("Q_12 = ", wynik_12)
-        # println("Q_50 = ", wynik_50)
-        # println("Q_62 = ", wynik_62)
-        # println("Q_118 = ", wynik_118)
-        # println("Q_231 = ", wynik_231)
-        # println("Q_237 = ", wynik_237)
-        # println("Q_1128 = ", wynik_1128)
-        # println("Q_1170 = ", wynik_1170)
-        # println("Q_slow_3_50 = ", wynik_slow_1)
-        # println("Q_slow_8_12_62_118 = ", wynik_slow_2)
-        # println("Q_slow_8_4_231_237_62_118_1128_1170 = ", wynik_slow_3)
+                println("Suma wag 3,50 = ",W_3 + W_50)
+                println("Suma wag 8,12,62,118 = ",W_8 + W_12 + W_62 + W_118)
+                println("Suma wag 8,4,231,237,62,118,1128,1170 = ",W3_8 + W3_4 + W3_231 + W3_237 + W3_62 + W3_118 + W3_1128 + W3_1170)
+            end
 
-        operatory_korelacji = [Q_3, Q_8, Q_26, Q_60, Q_slow_3_50, Q_slow_8_12_62_118, Q_slow_8_4_231_237_62_118_1128_1170,] #WYBOR OPERATOROW
-        wynik_H = eigen(Symmetric(H)) # DIAGONALIZACJA ED - RAZ DLA KAZDEGO g
+            C_3, wynik_3 = oblicz_komutator(H, Q_3)
+            C_4, wynik_4 = oblicz_komutator(H, Q_4)
+            C_8, wynik_8 = oblicz_komutator(H, Q_8)
+            C_12, wynik_12 = oblicz_komutator(H, Q_12)
+            C_26, wynik_26 = oblicz_komutator(H, Q_26)
+            C_50, wynik_50 = oblicz_komutator(H, Q_50)
+            C_60, wynik_60 = oblicz_komutator(H, Q_60)
+            C_62, wynik_62 = oblicz_komutator(H, Q_62)
+            C_118, wynik_118 = oblicz_komutator(H, Q_118)
+            C_231, wynik_231 = oblicz_komutator(H, Q_231)
+            C_237, wynik_237 = oblicz_komutator(H, Q_237)
+            C_1128, wynik_1128 = oblicz_komutator(H, Q_1128)
+            C_1170, wynik_1170 = oblicz_komutator(H, Q_1170)
+            C_slow_1, wynik_slow_1 = oblicz_komutator(H, Q_slow_3_50)
+            C_slow_2, wynik_slow_2 = oblicz_komutator(H, Q_slow_8_12_62_118)
+            C_slow_3, wynik_slow_3 = oblicz_komutator(H, Q_slow_8_4_231_237_62_118_1128_1170)
+            C_6, wynik_6 = oblicz_komutator(H, Q_6)
+            C_10, wynik_10 = oblicz_komutator(H, Q_10)
+            C_235, wynik_235 = oblicz_komutator(H, Q_235)
+            C_292, wynik_292 = oblicz_komutator(H, Q_292)
+            C_298, wynik_298 = oblicz_komutator(H, Q_298)
+            C_1121, wynik_1121 = oblicz_komutator(H, Q_1121)
+            C_slow_4, wynik_slow_4 = oblicz_komutator(H, Q_slow_8_118_62_4)
+            C_slow_5, wynik_slow_5 = oblicz_komutator(H, Q_slow_298_292_1121_235_10_6)
 
-        dane_korelacji = Vector{Any}(undef, length(operatory_korelacji))
-        for a in 1:length(operatory_korelacji)
-            A = operatory_korelacji[a]
-            dane_korelacji[a] = przygotuj_korelacje_ED(wynik_H, A, Psi_0)
-        end
+            wyniki[wiersz_parametrow, :] = vcat(parametry_wiersza, [
+                wynik_3, wynik_4, wynik_6, wynik_8, wynik_10, wynik_12, wynik_26, wynik_50,
+                wynik_60, wynik_62, wynik_118, wynik_231, wynik_235, wynik_237,
+                wynik_292, wynik_298, wynik_1121, wynik_1128, wynik_1170,
+                wynik_slow_1, wynik_slow_3, wynik_slow_2, wynik_slow_4, wynik_slow_5
+            ])
 
-        # PETLA PO CZASIE
-        for (j, t) in enumerate(t_values)
-            fazy = exp.(-im .* wynik_H.values .* t)
-            wiersz = (k - 1) * t_POINTS + j
-            wyniki_korelacji[wiersz, 1] = g
-            wyniki_korelacji[wiersz, 2] = t
-            wyniki_korelacji_trace[wiersz, 1] = g
-            wyniki_korelacji_trace[wiersz, 2] = t
+            # println("Q_3 = ", wynik_3)
+            # println("Q_4 = ", wynik_4)
+            # println("Q_8 = ", wynik_8)
+            # println("Q_12 = ", wynik_12)
+            # println("Q_50 = ", wynik_50)
+            # println("Q_62 = ", wynik_62)
+            # println("Q_118 = ", wynik_118)
+            # println("Q_231 = ", wynik_231)
+            # println("Q_237 = ", wynik_237)
+            # println("Q_1128 = ", wynik_1128)
+            # println("Q_1170 = ", wynik_1170)
+            # println("Q_slow_3_50 = ", wynik_slow_1)
+            # println("Q_slow_8_12_62_118 = ", wynik_slow_2)
+            # println("Q_slow_8_4_231_237_62_118_1128_1170 = ", wynik_slow_3)
 
+            # Matrix[...] utrzymuje zarowno Matrix{Float64}, jak i Matrix{ComplexF64}
+            # bez konwersji wszystkich operatorow na zespolone (mniejsze zuzycie pamieci).
+
+            operatory_korelacji = Matrix[
+                Q_3, Q_6, Q_8, Q_10, Q_26, Q_60, Q_235, Q_292, Q_298, Q_1121,
+                Q_slow_3_50, Q_slow_8_4_231_237_62_118_1128_1170,
+                Q_slow_8_12_62_118, Q_slow_8_118_62_4,
+                Q_slow_298_292_1121_235_10_6,
+            ] #WYBOR OPERATOROW
+            wynik_H = eigen(Symmetric(H)) # DIAGONALIZACJA ED - RAZ DLA KAZDEGO g
+
+            dane_korelacji = Vector{Any}(undef, length(operatory_korelacji))
             for a in 1:length(operatory_korelacji)
-                dane = dane_korelacji[a]
+                A = operatory_korelacji[a]
+                dane_korelacji[a] = przygotuj_korelacje_ED(wynik_H, A, Psi_0)
+            end
 
-                C_t = funkcja_korelacji_ED(dane, fazy)
-                wyniki_korelacji[wiersz, a + 2] = C_t
+            # PETLA PO CZASIE
+            for (j, t) in enumerate(t_values)
+                fazy = exp.(-im .* wynik_H.values .* t)
+                wiersz = (wiersz_parametrow - 1) * t_POINTS + j
+                wyniki_korelacji[wiersz, 1:liczba_kolumn_parametrow] = parametry_wiersza
+                wyniki_korelacji[wiersz, liczba_kolumn_parametrow + 1] = t
+                wyniki_korelacji_trace[wiersz, 1:liczba_kolumn_parametrow] = parametry_wiersza
+                wyniki_korelacji_trace[wiersz, liczba_kolumn_parametrow + 1] = t
 
-                C_trace_t = funkcja_korelacji_trace_ED(dane, fazy)
-                wyniki_korelacji_trace[wiersz, a + 2] = C_trace_t
+                for a in 1:length(operatory_korelacji)
+                    dane = dane_korelacji[a]
+
+                    C_t = funkcja_korelacji_ED(dane, fazy)
+                    wyniki_korelacji[wiersz, a + liczba_kolumn_parametrow + 1] = C_t
+
+                    C_trace_t = funkcja_korelacji_trace_ED(dane, fazy)
+                    wyniki_korelacji_trace[wiersz, a + liczba_kolumn_parametrow + 1] = C_trace_t
+                end
             end
         end
-    end
-    save_wyniki_vs_g(wyniki, kolumny, PBC;L_x=M, N_up, J, Delta, omega0,gmin=g_MIN, gmax=g_MAX, ng=g_POINTS)
-    save_korelacje_ED(wyniki_korelacji, kolumny_korelacji, PBC; nazwa="Korelacje_ED_vs_g_t", L_x=M, N_up, J, Delta, omega0,gmin=g_MIN, gmax=g_MAX, ng=g_POINTS,tmin=t_MIN, tmax=t_MAX, nt=t_POINTS)
-    save_korelacje_ED(wyniki_korelacji_trace, kolumny_korelacji, PBC; nazwa="Korelacje_trace_ED_vs_g_t", L_x=M, N_up, J, Delta, omega0, gmin=g_MIN, gmax=g_MAX, ng=g_POINTS, tmin=t_MIN, tmax=t_MAX, nt=t_POINTS)
+    end # koniec petli po omega_0
+    # Zapis calej siatki po zakonczeniu petli: nazwa pliku odpowiada faktycznym kolumnom.
+    save_wyniki_vs_g(wyniki, kolumny, PBC;
+        nazwa="Tr_komutatorow_vs_$(nazwa_skanu)", parametry_pliku...)
+    save_korelacje_ED(wyniki_korelacji, kolumny_korelacji, PBC;
+        nazwa="Korelacje_ED_vs_$(nazwa_skanu)_t", parametry_pliku...,
+        tmin=t_MIN, tmax=t_MAX, nt=t_POINTS)
+    save_korelacje_ED(wyniki_korelacji_trace, kolumny_korelacji, PBC;
+        nazwa="Korelacje_trace_ED_vs_$(nazwa_skanu)_t", parametry_pliku...,
+        tmin=t_MIN, tmax=t_MAX, nt=t_POINTS)
+
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
