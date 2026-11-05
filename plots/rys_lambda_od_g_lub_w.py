@@ -8,24 +8,25 @@ import numpy as np
 # USTAWIENIA
 
 filename_template = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_8_17.10.2026\siatka_omega_g\grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    # r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_8_17.10.2026\siatka_omega_g\grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
     # r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
 )
 
-eig_min, eig_max = 1, 58
+eig_min, eig_max = 1, 20
 
 # "fixed_omega" -> stałe omega_0, oś X = g
 # "fixed_g"     -> stałe g, oś X = omega_0
-plot_mode = "fixed_omega"
+plot_mode = "fixed_g"
 
 # "x", "1/x", "x^2", "gamma" - (gamma = x/(x+1)).
 x_transform = "x"
 
 omega_fixed = 0.75 #0.4827586206896552 
-g_fixed = 0.25  
+g_fixed = 0.75 
 value_tolerance = 1e-10
 
-save_plot = True
+save_plot = False
 show_plot = True
 
 output_directory = Path(
