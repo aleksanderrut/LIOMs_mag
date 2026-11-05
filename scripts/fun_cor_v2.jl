@@ -680,15 +680,15 @@ function main()
     omega0 = args["omega0"]
     PBC = args["pbc"] == "yes"
 
-    g_MIN = 0.0
-    g_MAX = 10.0
-    g_POINTS = 51
-    g_values = range(g_MIN, g_MAX, length=g_POINTS)
+    # g_MIN = 0.0
+    # g_MAX = 10.0
+    # g_POINTS = 51
+    # g_values = range(g_MIN, g_MAX, length=g_POINTS)
 
-    # g_values = [0.75]
-    # g_MIN = minimum(g_values)
-    # g_MAX = maximum(g_values)
-    # g_POINTS = length(g_values)
+    g_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
+    g_MIN = minimum(g_values)
+    g_MAX = maximum(g_values)
+    g_POINTS = length(g_values)
 
     # PIERWSZY WOLNY MOD ; INDEKSY 3 I 50
     W_3  = 9.9747961865030332e-01
@@ -762,7 +762,7 @@ function main()
     Psi_0_wspolne = losuj_q1_gauss(length(baza_int))
 
     # PETLA PO omega_0; tryb pojedynczej wartosci z argumentu -w:
-    omega0_values = [0.5]
+    omega0_values = [omega0]
     # omega0_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
     # omega0_values = range(0.0, 2.0, length=11)
     
@@ -843,10 +843,10 @@ function main()
             H, Q_3, Q_4, Q_8, Q_12, Q_50, Q_62, Q_118, Q_231, Q_237, Q_1128, Q_1170, Q_26, Q_60, Q_6, Q_10, Q_235, Q_292, Q_298, Q_1121 =
             gen_ham_xxz(M, J, Delta, PBC, baza_int, indeks_odwrotny, omega0, g)
 
-            save_data(H, "Ham", PBC; L_x=M, N_up, J, Delta, omega0)
-            save_data(Q_3, "Q_3", PBC; L_x=M, N_up, J, Delta, omega0)
-            save_data(Q_4, "Q_4", PBC; L_x=M, N_up, J, Delta, omega0)
-            save_data(Q_8, "Q_8", PBC; L_x=M, N_up, J, Delta, omega0)
+            # save_data(H, "Ham", PBC; L_x=M, N_up, J, Delta, omega0)
+            # save_data(Q_3, "Q_3", PBC; L_x=M, N_up, J, Delta, omega0)
+            # save_data(Q_4, "Q_4", PBC; L_x=M, N_up, J, Delta, omega0)
+            # save_data(Q_8, "Q_8", PBC; L_x=M, N_up, J, Delta, omega0)
 
             if k == 1
                 D = size(H, 1)
