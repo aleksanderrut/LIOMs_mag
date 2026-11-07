@@ -24,6 +24,9 @@ function XXZ_ladder(J::Float64, L::Int, Δ::Float64, Δ_2::Float64, ω_0::Float6
     H += g * ps.string_2d(("Sz", l, 1, "S+", l, 2), L, 2)
     H += g * ps.string_2d(("Sz", l, 1, "S-", l, 2), L, 2)
 
+    H += (g / 2) * ps.string_2d(("S+", l, 2), L, 2)
+    H += (g / 2) * ps.string_2d(("S-", l, 2), L, 2)
+
     H += (J_prime / 2) * ps.string_2d(("S+", l, 2, "S-", lp, 2), L, 2)
     H += (J_prime / 2) * ps.string_2d(("S-", l, 2, "S+", lp, 2), L, 2)
     H += (J * Δ_2) * ps.string_2d(("Sz", l, 2, "Sz", lp, 2), L, 2)
