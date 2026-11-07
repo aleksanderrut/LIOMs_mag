@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import re
 import matplotlib.pyplot as plt
@@ -10,12 +9,11 @@ import numpy as np
 
 # Folder z wynikami
 FOLDER_DANE = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_9_27_10_2026"
+    r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\fun_cor_data"
 )
 
 # Wybór pliku
-PLIK = FOLDER_DANE / "C:\\Users\\aleks\\Desktop\\praca magisterska\\dane_serwer\\set_9_27_10_2026\\Tr_komutatorow_vs_g_PBCtrue_L_x6_N_upall_J1.0_Delta0.001_omega00.5_gmin0.0_gmax10.0_ng11.data"
-# WYBOR OPERATOROW DO WYSWIETLENIA
+PLIK = FOLDER_DANE / "Tr_komutatorow_vs_g_PBCtrue_L_x9_N_up1_J1.0_Delta0.001_omega00.5_gmin0.0_gmax10.0_ng11.data"
 WYBRANE_OPERATORY = [
     "Q_3",
     "Q_8",
