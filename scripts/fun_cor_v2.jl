@@ -52,6 +52,7 @@ function gen_baza_xxz(L::Int; mag=:all)
 end
 
 # GENEROWANIE HAMILTONIANU I OPERATOROW
+# Q_1   = RR 000|200
 # Q_3   = RR 000|300
 # Q_4   = RR 000|220
 # Q_8   = RR 000|130
@@ -63,6 +64,9 @@ end
 # Q_118 = RR 020|320
 # Q_231 = II 130|320
 # Q_237 = II 130|230
+# Q_289 = RR 130|000
+# Q_300 = RR 130|130
+# Q_304 = RR 130|330
 # Q_1128 = RR 123|320
 # Q_1170 = RR 123|023
 # Q_6    = RR 000|320
@@ -130,6 +134,7 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
     else
         liczba_trojek = L - 2
     end
+    Q_1    = zeros(Float64, ile_stanow, ile_stanow)
     Q_3    = zeros(Float64, ile_stanow, ile_stanow)
     Q_4    = zeros(Float64, ile_stanow, ile_stanow)
     Q_8    = zeros(Float64, ile_stanow, ile_stanow)
@@ -141,6 +146,9 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
     Q_118  = zeros(Float64, ile_stanow, ile_stanow)
     Q_231  = zeros(Float64, ile_stanow, ile_stanow)
     Q_237  = zeros(Float64, ile_stanow, ile_stanow)
+    Q_289  = zeros(Float64, ile_stanow, ile_stanow)
+    Q_300  = zeros(Float64, ile_stanow, ile_stanow)
+    Q_304  = zeros(Float64, ile_stanow, ile_stanow)
     Q_1128 = zeros(Float64, ile_stanow, ile_stanow)
     Q_1170 = zeros(Float64, ile_stanow, ile_stanow)
 
@@ -154,12 +162,15 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
 
     for i in 1:ile_stanow
         state, state_bos = baza_int[i]
-        # 1. OPERATORY JEDNOMIEJSCOWE Q_3 ORAZ Q_50
+        # 1. OPERATORY JEDNOMIEJSCOWE Q_1, Q_3 ORAZ Q_50
         for bit_s in 0:(L - 1)
             spin_s = (state >> bit_s) & 1
             bos_s = (state_bos >> bit_s) & 1
             sz_ferm_s = spin_s - 0.5
             sz_bos_s = bos_s - 0.5
+
+            # Q_1 = RR 000|200 ; Sz_s,2
+            Q_1[i, i] += sz_bos_s
 
             # Q_3 = RR 000|300 ; S+_s,2 + S-_s,2
             new_state_bos = state_bos ⊻ (1 << bit_s)
@@ -170,7 +181,7 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
             Q_50[i, i] += 2 * sz_ferm_s * sz_bos_s
         end
 
-        # 2. OPERATORY DWUMIEJSCOWE Q_4, Q_8, Q_12, Q_60, Q_62, Q_118, Q_231, Q_237
+        # 2. OPERATORY DWUMIEJSCOWE Q_4, Q_8, Q_12, Q_60, Q_62, Q_118, Q_231, Q_237, Q_289, Q_300, Q_304
         for bit_s in 0:(liczba_polaczen - 1)
             if bit_s == L - 1
                 bit_t = 0
@@ -228,6 +239,12 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
             # Oba wymagaja przeskoku fermionu s <-> t.
             if spin_s != spin_t
                 new_state = state ⊻ ((1 << bit_s) | (1 << bit_t))
+
+                # Q_289 = RR 130|000
+                # Fermionowy przeskok s <-> t, identycznosc na nodze bozonowej.
+                indeks_289 = indeks_odwrotny[(new_state, state_bos)]
+                Q_289[indeks_289, i] += 1.0
+
                 znak_ferm = spin_t - spin_s
                 znak_bos_s = 2 * bos_s - 1
                 znak_bos_t = 2 * bos_t - 1
@@ -246,6 +263,17 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
                     indeks_235 = indeks_odwrotny[(new_state, flipped_bos_st)]
                     znak_bos_st = bos_t - bos_s
                     Q_235[indeks_235, i] += -znak_ferm * znak_bos_st
+
+                    # Q_300 = RR 130|130
+                    # Przeskok fermionu i bozonu na tej samej parze s,t.
+                    Q_300[indeks_235, i] += 1.0
+                else
+                    # Q_304 = RR 130|330
+                    # Przeskok fermionu oraz jednoczesne podniesienie/opuszczenie
+                    # obu spinow bozonowych na pozycjach s,t.
+                    flipped_bos_st = state_bos ⊻ ((1 << bit_s) | (1 << bit_t))
+                    indeks_304 = indeks_odwrotny[(new_state, flipped_bos_st)]
+                    Q_304[indeks_304, i] += 1.0
                 end
 
                 # Q_292 = RR 130|300
@@ -303,7 +331,7 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
             end
         end
     end
-    return H, Q_3, Q_4, Q_8, Q_12, Q_50, Q_62, Q_118, Q_231, Q_237, Q_1128, Q_1170, Q_26, Q_60, Q_6, Q_10, Q_235, Q_292, Q_298, Q_1121
+    return H, Q_1, Q_3, Q_4, Q_8, Q_12, Q_50, Q_62, Q_118, Q_231, Q_237, Q_289, Q_300, Q_304, Q_1128, Q_1170, Q_26, Q_60, Q_6, Q_10, Q_235, Q_292, Q_298, Q_1121
 end
 
 # =============================================================================
@@ -738,6 +766,14 @@ function main()
     c5_10   = -1.9813416356805943e-02
     c5_6    = -1.9813416356805828e-02
 
+    # SZOSTY WOLNY MOD: podane WSPOLCZYNNIKI (nie kwadraty wag)
+    c6_289 = +2.6826915982503569e-01
+    c6_50  = +2.2970174878212579e-01
+    c6_1   = +2.2706643887558231e-01
+    c6_304 = +1.3554462601762071e-01
+    c6_300 = +1.3497638882748697e-01
+    c6_3   = +1.8006087865737252e-03
+
     # GENEROWANIE BAZY - cała magentyzacja
     # mag = :all
     # N_up = "all"
@@ -792,14 +828,15 @@ function main()
     # Pierwsze kolumny: parametry skanowania. Pozostale: Tr([H,Q]†[H,Q])/D.
     # Zwykle operatory Q_i zapisujemy w kolejnosci rosnacych indeksow.
     kolumny = vcat(kolumny_parametrow, [
-        "Q_3", "Q_4", "Q_6", "Q_8", "Q_10", "Q_12", "Q_26", "Q_50",
-        "Q_60", "Q_62", "Q_118", "Q_231", "Q_235", "Q_237", "Q_292",
-        "Q_298", "Q_1121", "Q_1128", "Q_1170",
+        "Q_1", "Q_3", "Q_4", "Q_6", "Q_8", "Q_10", "Q_12", "Q_26", "Q_50",
+        "Q_60", "Q_62", "Q_118", "Q_231", "Q_235", "Q_237", "Q_289", "Q_292",
+        "Q_298", "Q_300", "Q_304", "Q_1121", "Q_1128", "Q_1170",
         "Q_slow_3_50",
         "Q_slow_8_4_231_237_62_118_1128_1170",
         "Q_slow_8_12_62_118",
         "Q_slow_8_118_62_4",
-        "Q_slow_298_292_1121_235_10_6"
+        "Q_slow_298_292_1121_235_10_6",
+        "Q_slow_289_50_1_304_300_3"
     ])
     wyniki = Matrix{Float64}(undef, liczba_punktow, length(kolumny))
 
@@ -812,13 +849,14 @@ function main()
     # Pierwsze kolumny: parametry, potem czas t. Pozostale: C_Q(t) = Re⟨Ψ₀|e^(iHt) Q e^(-iHt) Q|Ψ₀⟩
     kolumny_korelacji = vcat(kolumny_parametrow, [
         "t",
-        "Q_3", "Q_6", "Q_8", "Q_10", "Q_26", "Q_60",
-        "Q_235", "Q_292", "Q_298", "Q_1121",
+        "Q_1", "Q_3", "Q_6", "Q_8", "Q_10", "Q_26", "Q_50", "Q_60",
+        "Q_235", "Q_289", "Q_292", "Q_298", "Q_300", "Q_304", "Q_1121",
         "C_slow_3_50",
         "C_slow_8_4_231_237_62_118_1128_1170",
         "C_slow_8_12_62_118",
         "C_slow_8_118_62_4",
-        "C_slow_298_292_1121_235_10_6"
+        "C_slow_298_292_1121_235_10_6",
+        "C_slow_289_50_1_304_300_3"
     ])
 
     # Losowy stan poczatkowy — ten sam dla wszystkich omega_0 i g
@@ -840,7 +878,7 @@ function main()
             parametry_wiersza = skan_omega0 ? (skan_g ? [omega0, g] : [omega0]) : [g]
 
             #generowane Ham i wszystkich operatorów
-            H, Q_3, Q_4, Q_8, Q_12, Q_50, Q_62, Q_118, Q_231, Q_237, Q_1128, Q_1170, Q_26, Q_60, Q_6, Q_10, Q_235, Q_292, Q_298, Q_1121 =
+            H, Q_1, Q_3, Q_4, Q_8, Q_12, Q_50, Q_62, Q_118, Q_231, Q_237, Q_289, Q_300, Q_304, Q_1128, Q_1170, Q_26, Q_60, Q_6, Q_10, Q_235, Q_292, Q_298, Q_1121 =
             gen_ham_xxz(M, J, Delta, PBC, baza_int, indeks_odwrotny, omega0, g)
 
             # save_data(H, "Ham", PBC; L_x=M, N_up, J, Delta, omega0)
@@ -851,6 +889,7 @@ function main()
             if k == 1
                 D = size(H, 1)
                 println("--- NORMY KWADRATOWE HS ---")
+                println("Q_1   = ", sum(abs2, Q_1) / D)
                 println("Q_3   = ", sum(abs2, Q_3) / D)
                 println("Q_4   = ", sum(abs2, Q_4) / D)
                 println("Q_8   = ", sum(abs2, Q_8) / D)
@@ -862,6 +901,9 @@ function main()
                 println("Q_118 = ", sum(abs2, Q_118) / D)
                 println("Q_231 = ", sum(abs2, Q_231) / D)
                 println("Q_237 = ", sum(abs2, Q_237) / D)
+                println("Q_289 = ", sum(abs2, Q_289) / D)
+                println("Q_300 = ", sum(abs2, Q_300) / D)
+                println("Q_304 = ", sum(abs2, Q_304) / D)
                 println("Q_1128 = ", sum(abs2, Q_1128) / D)
                 println("Q_1170 = ", sum(abs2, Q_1170) / D)
                 println("Q_6 = ", sum(abs2, Q_6) / D)
@@ -872,6 +914,7 @@ function main()
                 println("Q_1121 = ", sum(abs2, Q_1121) / D)
             end
 
+            Q_1   = normalizuj_operator(Q_1)
             Q_3   = normalizuj_operator(Q_3)
             Q_4   = normalizuj_operator(Q_4)
             Q_8   = normalizuj_operator(Q_8)
@@ -883,6 +926,9 @@ function main()
             Q_118 = normalizuj_operator(Q_118)
             Q_231 = normalizuj_operator(Q_231)
             Q_237 = normalizuj_operator(Q_237)
+            Q_289 = normalizuj_operator(Q_289)
+            Q_300 = normalizuj_operator(Q_300)
+            Q_304 = normalizuj_operator(Q_304)
             Q_1128 = normalizuj_operator(Q_1128)
             Q_1170 = normalizuj_operator(Q_1170)
             Q_6 = normalizuj_operator(Q_6)
@@ -899,10 +945,12 @@ function main()
             # DWA NOWE LIOMSY: wspolczynniki sa podane bezposrednio ze znakami.
             Q_slow_8_118_62_4 = c4_8 * Q_8 + c4_118 * Q_118 + c4_62 * Q_62 + c4_4 * Q_4
             Q_slow_298_292_1121_235_10_6 = c5_298 * Q_298 + c5_292 * Q_292 + c5_1121 * Q_1121 + c5_235 * Q_235 + c5_10 * Q_10 + c5_6 * Q_6
+            Q_slow_289_50_1_304_300_3 = c6_289 * Q_289 + c6_50 * Q_50 + c6_1 * Q_1 + c6_304 * Q_304 + c6_300 * Q_300 + c6_3 * Q_3
 
             if k == 1
                 D = size(H, 1)
                 println("--- NORMY KWADRATOWE HS ---")
+                println("Q_1   = ", sum(abs2, Q_1) / D)
                 println("Q_3   = ", sum(abs2, Q_3) / D)
                 println("Q_4   = ", sum(abs2, Q_4) / D)
                 println("Q_8   = ", sum(abs2, Q_8) / D)
@@ -914,6 +962,9 @@ function main()
                 println("Q_118 = ", sum(abs2, Q_118) / D)
                 println("Q_231 = ", sum(abs2, Q_231) / D)
                 println("Q_237 = ", sum(abs2, Q_237) / D)
+                println("Q_289 = ", sum(abs2, Q_289) / D)
+                println("Q_300 = ", sum(abs2, Q_300) / D)
+                println("Q_304 = ", sum(abs2, Q_304) / D)
                 println("Q_1128 = ", sum(abs2, Q_1128) / D)
                 println("Q_1170 = ", sum(abs2, Q_1170) / D)
                 println("Q_6 = ", sum(abs2, Q_6) / D)
@@ -928,12 +979,14 @@ function main()
                 println("Q_slow_8_4_231_237_62_118_1128_1170 = ", sum(abs2, Q_slow_8_4_231_237_62_118_1128_1170) / D)
                 println("Q_slow_8_118_62_4 = ", sum(abs2, Q_slow_8_118_62_4) / D)
                 println("Q_slow_298_292_1121_235_10_6 = ", sum(abs2, Q_slow_298_292_1121_235_10_6) / D)
+                println("Q_slow_289_50_1_304_300_3 = ", sum(abs2, Q_slow_289_50_1_304_300_3) / D)
 
                 println("Suma wag 3,50 = ",W_3 + W_50)
                 println("Suma wag 8,12,62,118 = ",W_8 + W_12 + W_62 + W_118)
                 println("Suma wag 8,4,231,237,62,118,1128,1170 = ",W3_8 + W3_4 + W3_231 + W3_237 + W3_62 + W3_118 + W3_1128 + W3_1170)
             end
 
+            C_1, wynik_1 = oblicz_komutator(H, Q_1)
             C_3, wynik_3 = oblicz_komutator(H, Q_3)
             C_4, wynik_4 = oblicz_komutator(H, Q_4)
             C_8, wynik_8 = oblicz_komutator(H, Q_8)
@@ -945,6 +998,9 @@ function main()
             C_118, wynik_118 = oblicz_komutator(H, Q_118)
             C_231, wynik_231 = oblicz_komutator(H, Q_231)
             C_237, wynik_237 = oblicz_komutator(H, Q_237)
+            C_289, wynik_289 = oblicz_komutator(H, Q_289)
+            C_300, wynik_300 = oblicz_komutator(H, Q_300)
+            C_304, wynik_304 = oblicz_komutator(H, Q_304)
             C_1128, wynik_1128 = oblicz_komutator(H, Q_1128)
             C_1170, wynik_1170 = oblicz_komutator(H, Q_1170)
             C_slow_1, wynik_slow_1 = oblicz_komutator(H, Q_slow_3_50)
@@ -958,12 +1014,13 @@ function main()
             C_1121, wynik_1121 = oblicz_komutator(H, Q_1121)
             C_slow_4, wynik_slow_4 = oblicz_komutator(H, Q_slow_8_118_62_4)
             C_slow_5, wynik_slow_5 = oblicz_komutator(H, Q_slow_298_292_1121_235_10_6)
+            C_slow_6, wynik_slow_6 = oblicz_komutator(H, Q_slow_289_50_1_304_300_3)
 
             wyniki[wiersz_parametrow, :] = vcat(parametry_wiersza, [
-                wynik_3, wynik_4, wynik_6, wynik_8, wynik_10, wynik_12, wynik_26, wynik_50,
+                wynik_1, wynik_3, wynik_4, wynik_6, wynik_8, wynik_10, wynik_12, wynik_26, wynik_50,
                 wynik_60, wynik_62, wynik_118, wynik_231, wynik_235, wynik_237,
-                wynik_292, wynik_298, wynik_1121, wynik_1128, wynik_1170,
-                wynik_slow_1, wynik_slow_3, wynik_slow_2, wynik_slow_4, wynik_slow_5
+                wynik_289, wynik_292, wynik_298, wynik_300, wynik_304, wynik_1121, wynik_1128, wynik_1170,
+                wynik_slow_1, wynik_slow_3, wynik_slow_2, wynik_slow_4, wynik_slow_5, wynik_slow_6
             ])
 
             # println("Q_3 = ", wynik_3)
@@ -985,10 +1042,12 @@ function main()
             # bez konwersji wszystkich operatorow na zespolone (mniejsze zuzycie pamieci).
 
             operatory_korelacji = Matrix[
-                Q_3, Q_6, Q_8, Q_10, Q_26, Q_60, Q_235, Q_292, Q_298, Q_1121,
+                Q_1, Q_3, Q_6, Q_8, Q_10, Q_26, Q_50, Q_60,
+                Q_235, Q_289, Q_292, Q_298, Q_300, Q_304, Q_1121,
                 Q_slow_3_50, Q_slow_8_4_231_237_62_118_1128_1170,
                 Q_slow_8_12_62_118, Q_slow_8_118_62_4,
                 Q_slow_298_292_1121_235_10_6,
+                Q_slow_289_50_1_304_300_3,
             ] #WYBOR OPERATOROW
             wynik_H = eigen(Symmetric(H)) # DIAGONALIZACJA ED - RAZ DLA KAZDEGO g
 
