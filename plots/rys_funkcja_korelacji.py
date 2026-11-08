@@ -16,28 +16,28 @@ plt.rcParams["font.size"] = FONT_SIZE
 # USTAWIENIA
 # =============================================================================
 
-# Folder do ktorego skopiujesz dwa pliki z serwera mm8.
-# Poprzednia lokalizacja danych historycznych pozostaje tu jako komentarz.
+# Folder z wynikami pobranymi z serwera mm8.
 FOLDER_DANE = Path(
     #r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\fun_cor_data\doróbki"
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\jeden_elektron"
+    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\wszystkie_magnetyzacje"
 )
 
-TRYB_SKANU = "g"
-PLIK = None
-PLIK_TRACE = None
-
-
-# TRYB WYKRESU: "omega0" (nowe wyniki), "g" (stare skanowanie), "omega0_g" (skan 2D).
+# TRYB WYKRESU: "omega0", "g" albo "omega0_g".
 TRYB_SKANU = "g"
 
-# Plik z korelacjami dla losowego stanu.
-# None: automatycznie znajdz najnowszy pasujacy plik w FOLDER_DANE.
-# Mozesz tez wpisac: PLIK = FOLDER_DANE / "Korelacje_ED_vs_omega0_t_...data"
-PLIK = None
+# Niezalezne wlaczanie metod korelacji.
+POKAZ_RANDOM_STATE = True
+POKAZ_TRACE = False
+POKAZ_FERMION_LOKALNY = False
 
-# Plik z korelacjami sladowymi (wyznaczany automatycznie z PLIK).
+# Pozycja elektronu w trzeciej metodzie (zgodna z x w nazwie pliku).
+POZYCJA_FERMIONU = 5
+
+# Mozna wskazac konkretne pliki. None = automatyczne wyszukiwanie.
+PLIK = None
 PLIK_TRACE = None
+PLIK_FERMION_LOKALNY = None
 
 # WYBOR WARTOSCI SPRZEZENIA (dla skanowania g)
 G_WYBRANE = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
@@ -46,7 +46,7 @@ G_WYBRANE = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
 # None: automatycznie rysuj wszystkie wartosci omega0 z pliku.
 # OMEGA0_WYBRANE = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0]
 # OMEGA0_WYBRANE = [0.0, 0.4, 0.8, 1.0, 2.0]
-# OMEGA0_WYBRANE = None
+OMEGA0_WYBRANE = None
 
 # Stale g na potrzeby kontroli pliku i ewentualnego skanu omega0_g.
 G_STALE = 0.65
@@ -67,11 +67,11 @@ WYBRANE_KORELACJE = [
     #"C_slow_8_12_62_118",
     # "C_slow_3_50",
     #"Q_3",
-    #"Q_8",
+    # "Q_8",
     # "Q_26",
     # "Q_60",
-    #"C_slow_289_50_1_304_300_3",
-    #"Q_289",
+    "C_slow_289_50_1_304_300_3",
+    # "Q_289",
     # "Q_50",
     # "Q_1",
     # "Q_304",
@@ -152,19 +152,24 @@ output_folder = Path(__file__).resolve().parent
 # =============================================================================
 
 def odczytaj_parametry(plik):
-    # Obslugujemy trzy rodzaje plikow generowanych przez fun_cor_v2.jl.
+    # Obslugujemy pliki random state, trace oraz lokalnego elektronu.
     wzor = re.compile(
-        r"^Korelacje_(?:trace_)?ED_vs_(?P<skan>omega0_g|omega0|g)_t_"
+        r"^Korelacje_(?:(?P<metoda>trace|fermion_lokalny)_)?ED_vs_"
+        r"(?P<skan>omega0_g|omega0|g)_t_"
         r"PBC(?P<PBC>true|false)(?P<reszta>.*)\.data$"
     )
     wynik = wzor.fullmatch(plik.name)
     if wynik is None:
         raise ValueError(f"Nie udalo sie odczytac parametrow z nazwy:\n{plik.name}")
 
-    parametry = {"skan": wynik.group("skan"), "PBC": wynik.group("PBC")}
+    parametry = {
+        "metoda": wynik.group("metoda") or "random",
+        "skan": wynik.group("skan"),
+        "PBC": wynik.group("PBC"),
+    }
     wzor_pola = re.compile(
         r"_(?P<klucz>L_x|N_up|J|Delta|omega0min|omega0max|omega0|"
-        r"gmin|gmax|ng|nw|tmin|tmax|nt)(?P<wartosc>[^_]+)"
+        r"gmin|gmax|ng|nw|x|tmin|tmax|nt)(?P<wartosc>[^_]+)"
     )
     for m in wzor_pola.finditer(wynik.group("reszta")):
         parametry[m.group("klucz")] = m.group("wartosc")
@@ -175,32 +180,117 @@ def odczytaj_parametry(plik):
     return parametry
 
 
-def znajdz_pare_plikow(folder, skan, plik=None):
-    """Wybiera plik random state i pasujacy plik trace z tej samej serii."""
-    if plik is None:
-        kandydaci = list(folder.glob(f"Korelacje_ED_vs_{skan}_t_*.data"))
-        if skan == "omega0":
-            # Przy pojedynczym g w pliku zapisano gmin=gmax=G_STALE.
-            kandydaci = [p for p in kandydaci if
-                          f"_gmin{G_STALE:g}_gmax{G_STALE:g}_ng1_" in p.name]
-        if not kandydaci:
-            raise FileNotFoundError(
-                f"Brak plikow 'Korelacje_ED_vs_{skan}_t_*.data' dla g={G_STALE:g} "
-                f"w folderze: {folder}\nNajpierw skopiuj pliki wynikowe z serwera."
-            )
-        plik = max(kandydaci, key=lambda p: p.stat().st_mtime)
-    else:
-        plik = Path(plik)
+def aktywne_metody():
+    """Zwraca wlaczone metody w stalej kolejnosci rysowania."""
+    metody = []
+    if POKAZ_RANDOM_STATE:
+        metody.append(("random", PLIK))
+    if POKAZ_TRACE:
+        metody.append(("trace", PLIK_TRACE))
+    if POKAZ_FERMION_LOKALNY:
+        metody.append(("fermion_lokalny", PLIK_FERMION_LOKALNY))
+    if not metody:
+        raise ValueError("Wszystkie metody korelacji sa wylaczone.")
+    return metody
 
-    prefiks = "Korelacje_ED_vs_"
-    if not plik.name.startswith(prefiks):
-        raise ValueError(f"Niepoprawna nazwa pliku random state: {plik.name}")
-    plik_trace = plik.with_name(plik.name.replace(prefiks, "Korelacje_trace_ED_vs_", 1))
-    if not plik.is_file() or not plik_trace.is_file():
-        raise FileNotFoundError(f"Potrzebne sa OBA pliki:\n{plik}\n{plik_trace}")
-    print("Random state:", plik)
-    print("Trace:       ", plik_trace)
-    return plik, plik_trace
+
+def znajdz_pliki_metod(folder, skan):
+    """Znajduje osobne pliki dla wlaczonych metod i sprawdza, czy opisuja ten sam skan."""
+    konfiguracja = {
+        "random": ("Korelacje_ED_vs_", PLIK),
+        "trace": ("Korelacje_trace_ED_vs_", PLIK_TRACE),
+        "fermion_lokalny": ("Korelacje_fermion_lokalny_ED_vs_", PLIK_FERMION_LOKALNY),
+    }
+
+    znalezione = {}
+    parametry_metod = {}
+
+    for metoda, plik_reczny in aktywne_metody():
+        prefiks, _ = konfiguracja[metoda]
+
+        if plik_reczny is not None:
+            plik = Path(plik_reczny)
+        else:
+            kandydaci = list(folder.glob(f"{prefiks}{skan}_t_*.data"))
+
+            if skan == "omega0":
+                # Przy pojedynczym g w pliku zapisano gmin=gmax=G_STALE i ng=1.
+                pasujace = []
+                for kandydat in kandydaci:
+                    p = odczytaj_parametry(kandydat)
+                    if (
+                        np.isclose(float(p.get("gmin", "nan")), G_STALE)
+                        and np.isclose(float(p.get("gmax", "nan")), G_STALE)
+                        and p.get("ng") == "1"
+                    ):
+                        pasujace.append(kandydat)
+                kandydaci = pasujace
+
+            if metoda == "fermion_lokalny":
+                znacznik_x = f"_x{POZYCJA_FERMIONU}_tmin"
+                kandydaci = [p for p in kandydaci if znacznik_x in p.name]
+
+            if not kandydaci:
+                raise FileNotFoundError(
+                    f"Nie znaleziono pliku dla metody '{metoda}' i skanu '{skan}' "
+                    f"w folderze:\n{folder}"
+                )
+            plik = max(kandydaci, key=lambda p: p.stat().st_mtime)
+
+        if not plik.is_file():
+            raise FileNotFoundError(f"Nie znaleziono pliku dla metody '{metoda}':\n{plik}")
+
+        parametry = odczytaj_parametry(plik)
+        if parametry["metoda"] != metoda:
+            raise ValueError(
+                f"Plik przypisany do metody '{metoda}' ma typ '{parametry['metoda']}':\n{plik}"
+            )
+        if parametry["skan"] != skan:
+            raise ValueError(
+                f"Wybrany TRYB_SKANU={skan}, ale plik ma skan {parametry['skan']}:\n{plik}"
+            )
+        if metoda == "fermion_lokalny":
+            x_z_pliku = int(parametry.get("x", -1))
+            if x_z_pliku != POZYCJA_FERMIONU:
+                raise ValueError(
+                    f"Plik lokalnego elektronu ma x={x_z_pliku}, "
+                    f"a POZYCJA_FERMIONU={POZYCJA_FERMIONU}:\n{plik}"
+                )
+
+        znalezione[metoda] = plik
+        parametry_metod[metoda] = parametry
+        print(f"{metoda:18s}: {plik}")
+
+    # Wszystkie wlaczone pliki musza dotyczyc tych samych parametrow fizycznych i skanu.
+    klucze_wspolne = (
+        "skan", "PBC", "L_x", "N_up", "J", "Delta", "omega0",
+        "omega0min", "omega0max", "gmin", "gmax", "ng", "nw",
+        "tmin", "tmax", "nt",
+    )
+    metoda_ref = next(iter(parametry_metod))
+    ref = parametry_metod[metoda_ref]
+
+    for metoda, parametry in parametry_metod.items():
+        for klucz in klucze_wspolne:
+            a = ref.get(klucz)
+            b = parametry.get(klucz)
+            if a is None and b is None:
+                continue
+            if a is None or b is None:
+                raise ValueError(
+                    f"Pliki metod '{metoda_ref}' i '{metoda}' maja rozne parametry ({klucz})."
+                )
+            try:
+                zgodne = np.isclose(float(a), float(b), rtol=0, atol=1e-10)
+            except ValueError:
+                zgodne = (a == b)
+            if not zgodne:
+                raise ValueError(
+                    f"Pliki metod '{metoda_ref}' i '{metoda}' nie pochodza z tego samego skanu: "
+                    f"{klucz}={a} oraz {klucz}."
+                )
+
+    return znalezione
 
 
 # =============================================================================
@@ -242,20 +332,30 @@ def wybierz_dane_parametru(kolumny, dane, nazwa_parametru, wartosc, g_stale=None
     return wybrane[np.argsort(wybrane[:, kolumny.index("t")])]
 
 
-def sprawdz_dostepne_wartosci(kolumny, dane, kolumny_trace, dane_trace,
-                              wybrane, nazwa_parametru, g_stale=None):
-    """Zostawia wartosci dostepne jednoczesnie w obu plikach."""
+def sprawdz_dostepne_wartosci(zbiory, wybrane, nazwa_parametru, g_stale=None):
+    """Zostawia wartosci dostepne we wszystkich wlaczonych plikach."""
     poprawne = []
     brakujace = []
+
     for x in wybrane:
-        def jest_w_pliku(nazwy, tab):
-            mask = np.isclose(tab[:, nazwy.index(nazwa_parametru)], x,
-                              rtol=0, atol=1e-8)
+        dostepna_we_wszystkich = True
+        for metoda, (nazwy, tab) in zbiory.items():
+            if nazwa_parametru not in nazwy:
+                raise ValueError(
+                    f"Brak kolumny '{nazwa_parametru}' w pliku metody '{metoda}'."
+                )
+            maska = np.isclose(
+                tab[:, nazwy.index(nazwa_parametru)], x, rtol=0, atol=1e-8
+            )
             if g_stale is not None and "g" in nazwy:
-                mask &= np.isclose(tab[:, nazwy.index("g")], g_stale,
-                                    rtol=0, atol=1e-8)
-            return np.any(mask)
-        if jest_w_pliku(kolumny, dane) and jest_w_pliku(kolumny_trace, dane_trace):
+                maska &= np.isclose(
+                    tab[:, nazwy.index("g")], g_stale, rtol=0, atol=1e-8
+                )
+            if not np.any(maska):
+                dostepna_we_wszystkich = False
+                break
+
+        if dostepna_we_wszystkich:
             poprawne.append(x)
         else:
             brakujace.append(x)
@@ -266,8 +366,11 @@ def sprawdz_dostepne_wartosci(kolumny, dane, kolumny_trace, dane_trace,
             print("UWAGA:", komunikat, "- pominieto")
         else:
             raise ValueError(komunikat)
+
     if not poprawne:
-        raise ValueError("Zadna wybrana wartosc parametru nie wystepuje w obu plikach.")
+        raise ValueError(
+            "Zadna wybrana wartosc parametru nie wystepuje we wszystkich wlaczonych plikach."
+        )
     return poprawne
 
 
@@ -487,14 +590,19 @@ def dodaj_opisy_pod_wykresem(fig, indeksy, opisy_bazy, wysokosc_rysunku, wysokos
 # RYSOWANIE WSZYSTKICH omega_0 / g NA JEDNYM WYKRESIE
 # =============================================================================
 
-def rysuj_wykres(plik, plik_trace, wybrane_korelacje, wartosci_wybrane=None):
-    parametry = odczytaj_parametry(plik)
-    odczytaj_parametry(plik_trace)
-    if parametry["skan"] != TRYB_SKANU:
-        raise ValueError(f"Wybrany TRYB_SKANU={TRYB_SKANU}, ale plik ma {parametry['skan']}")
+def rysuj_wykres(pliki, wybrane_korelacje, wartosci_wybrane=None):
+    # Wczytanie wszystkich wlaczonych metod.
+    parametry_metod = {}
+    zbiory = {}
 
-    kolumny, dane = wczytaj_dane(plik)
-    kolumny_trace, dane_trace = wczytaj_dane(plik_trace)
+    for metoda, plik in pliki.items():
+        parametry_metod[metoda] = odczytaj_parametry(plik)
+        zbiory[metoda] = wczytaj_dane(plik)
+
+    metoda_ref = next(iter(pliki))
+    parametry = parametry_metod[metoda_ref]
+    kolumny = zbiory[metoda_ref][0]
+    dane = zbiory[metoda_ref][1]
 
     if not wybrane_korelacje:
         raise ValueError("Nie wybrano zadnej korelacji.")
@@ -511,13 +619,16 @@ def rysuj_wykres(plik, plik_trace, wybrane_korelacje, wartosci_wybrane=None):
                 f"Wybrano plik z g={g_min:g}..{g_max:g}, a G_STALE={G_STALE:g}"
             )
 
-    for nazwa in wybrane_korelacje:
-        nazwa_w_pliku = nazwa_kolumny_w_pliku(nazwa)
-        if nazwa_w_pliku not in kolumny or nazwa_w_pliku not in kolumny_trace:
-            raise ValueError(
-                f"Brak korelacji {nazwa} (kolumna: {nazwa_w_pliku}) w jednym z plikow.\n"
-                f"Dostepne kolumny: {kolumny}"
-            )
+    # Sprawdzamy, czy wszystkie wybrane kolumny wystepuja w kazdym wlaczonym pliku.
+    for metoda, (kolumny_metody, _) in zbiory.items():
+        for nazwa in wybrane_korelacje:
+            nazwa_w_pliku = nazwa_kolumny_w_pliku(nazwa)
+            if nazwa_w_pliku not in kolumny_metody:
+                raise ValueError(
+                    f"Brak korelacji {nazwa} (kolumna: {nazwa_w_pliku}) "
+                    f"w pliku metody '{metoda}'.\n"
+                    f"Dostepne kolumny: {kolumny_metody}"
+                )
 
     wartosci_dostepne = np.unique(dane[:, kolumny.index(nazwa_parametru)])
     if wartosci_wybrane is None:
@@ -526,8 +637,7 @@ def rysuj_wykres(plik, plik_trace, wybrane_korelacje, wartosci_wybrane=None):
     print(f"Wybrane wartosci {nazwa_parametru}:", wartosci_wybrane)
 
     wartosci_do_rysowania = sprawdz_dostepne_wartosci(
-        kolumny, dane, kolumny_trace, dane_trace,
-        wartosci_wybrane, nazwa_parametru, g_stale=g_filtr
+        zbiory, wartosci_wybrane, nazwa_parametru, g_stale=g_filtr
     )
     print("Rysowane wartosci:", wartosci_do_rysowania)
 
@@ -543,13 +653,20 @@ def rysuj_wykres(plik, plik_trace, wybrane_korelacje, wartosci_wybrane=None):
     opisy_bazy = wczytaj_opisy_operatorow(PLIK_BAZY, indeksy_bazy) if indeksy_bazy else {}
 
     # -------------------------------------------------------------------------
-    # KOLORY - INNY KOLOR DLA KAZDEJ KOMBINACJI (omega0/g, OPERATOR)
+    # KOLORY - TEN SAM KOLOR DLA TEGO SAMEGO OPERATORA I WARTOSCI PARAMETRU.
+    # Metody rozrozniamy stylem linii.
     # -------------------------------------------------------------------------
     liczba_krzywych = len(wartosci_do_rysowania) * len(wybrane_korelacje)
     if liczba_krzywych <= 10:
         kolory = plt.cm.tab10(np.arange(liczba_krzywych))
     else:
         kolory = plt.cm.turbo(np.linspace(0.05, 0.95, liczba_krzywych))
+
+    style_metod = {
+        "random": ("Random state", "--"),
+        "trace": ("Trace", "-"),
+        "fermion_lokalny": ("Lokalny elektron", ":"),
+    }
 
     # -------------------------------------------------------------------------
     # WYKRES
@@ -580,36 +697,45 @@ def rysuj_wykres(plik, plik_trace, wybrane_korelacje, wartosci_wybrane=None):
     liczba_wartosci = len(wartosci_do_rysowania)
 
     for wartosc in wartosci_do_rysowania:
-        dane_x = wybierz_dane_parametru(kolumny, dane, nazwa_parametru, wartosc, g_stale=g_filtr)
-        dane_x_trace = wybierz_dane_parametru(
-            kolumny_trace, dane_trace, nazwa_parametru, wartosc, g_stale=g_filtr
-        )
-        t = dane_x[:, kolumny.index("t")]
-        t_trace = dane_x_trace[:, kolumny_trace.index("t")]
-        wartosc_rzeczywista = dane_x[0, kolumny.index(nazwa_parametru)]
+        # Dane dla kazdej wlaczonej metody przy tej samej wartosci parametru.
+        dane_metod_x = {}
+        for metoda, (kolumny_metody, dane_metody) in zbiory.items():
+            dane_metod_x[metoda] = wybierz_dane_parametru(
+                kolumny_metody, dane_metody, nazwa_parametru, wartosc, g_stale=g_filtr
+            )
+
+        wartosc_rzeczywista = dane_metod_x[metoda_ref][
+            0, zbiory[metoda_ref][0].index(nazwa_parametru)
+        ]
 
         for nazwa in wybrane_korelacje:
             nazwa_w_pliku = nazwa_kolumny_w_pliku(nazwa)
-            C_t = dane_x[:, kolumny.index(nazwa_w_pliku)]
-            C_trace_t = dane_x_trace[:, kolumny_trace.index(nazwa_w_pliku)]
-
             kolor = kolory[numer_koloru]
             numer_koloru += 1
+
             podpis = etykieta_do_legendy(
                 nazwa, wartosc_rzeczywista, liczba_operatorow,
                 liczba_wartosci, nazwa_parametru
             )
 
-            # RANDOM STATE - LINIA PRZERYWANA
-            ax.plot(
-                t, C_t, color=kolor, linestyle="--", linewidth=LINE_WIDTH,
-                marker="o" if POKAZ_PUNKTY else None, markersize=3.5, label=podpis
-            )
-            # TRACE - LINIA CIAGLA
-            ax.plot(
-                t_trace, C_trace_t, color=kolor, linestyle="-",
-                linewidth=LINE_WIDTH, label="_nolegend_"
-            )
+            # Kazda metoda ma ten sam kolor dla danego operatora i parametru,
+            # ale inny styl linii.
+            for nr_metody, (metoda, (kolumny_metody, _)) in enumerate(zbiory.items()):
+                dane_x = dane_metod_x[metoda]
+                t = dane_x[:, kolumny_metody.index("t")]
+                C_t = dane_x[:, kolumny_metody.index(nazwa_w_pliku)]
+                etykieta_metody, styl_linii = style_metod[metoda]
+
+                ax.plot(
+                    t,
+                    C_t,
+                    color=kolor,
+                    linestyle=styl_linii,
+                    linewidth=LINE_WIDTH,
+                    marker="o" if (POKAZ_PUNKTY and metoda == "random") else None,
+                    markersize=3.5,
+                    label=podpis if nr_metody == 0 else "_nolegend_"
+                )
 
     # -------------------------------------------------------------------------
     # OPISY OSI
@@ -629,12 +755,19 @@ def rysuj_wykres(plik, plik_trace, wybrane_korelacje, wartosci_wybrane=None):
         omega_tytul = float(parametry.get("omega0", OMEGA_0_TYTUL))
         opis_stalego_parametru = rf"\omega_0={omega_tytul:g}"
 
+    if "fermion_lokalny" in pliki:
+        x_fermionu = parametry_metod["fermion_lokalny"].get("x", str(POZYCJA_FERMIONU))
+        opis_pozycji = rf",\; x_{{\mathrm{{ferm}}}}={x_fermionu}"
+    else:
+        opis_pozycji = ""
+
     tytul = (
         rf"$L={parametry['M']},\; "
         rf"N_{{\uparrow}}={parametry['N_up']},\; "
         rf"J={parametry['J']},\; "
         rf"\Delta={parametry['Delta']},\; "
-        rf"{opis_stalego_parametru},\; "
+        rf"{opis_stalego_parametru}"
+        rf"{opis_pozycji},\; "
         rf"{opis_operatorow}$"
     )
 
@@ -652,13 +785,16 @@ def rysuj_wykres(plik, plik_trace, wybrane_korelacje, wartosci_wybrane=None):
     # LEGENDA
     # -------------------------------------------------------------------------
     handles, labels = ax.get_legend_handles_labels()
-    # Dwa dodatkowe przyklady stylu linii:
-    # TRACE = ciagla, RANDOM STATE = przerywana
-    handles += [
-        Line2D([0], [0], color="black", linestyle="-", linewidth=LINE_WIDTH_LEGEND),
-        Line2D([0], [0], color="black", linestyle="--", linewidth=LINE_WIDTH_LEGEND)
-    ]
-    labels += ["Trace", "Random state"]
+
+    # Style linii rozrozniaja wlaczone metody.
+    for metoda in pliki:
+        etykieta_metody, styl_linii = style_metod[metoda]
+        handles.append(
+            Line2D([0], [0], color="black", linestyle=styl_linii,
+                   linewidth=LINE_WIDTH_LEGEND)
+        )
+        labels.append(etykieta_metody)
+
     ax.legend(
         handles, labels, loc="upper left", bbox_to_anchor=(1.025, 1.0),
         fontsize=FONT_SIZE, frameon=False, ncol=1, labelspacing=0.45,
@@ -674,7 +810,7 @@ def rysuj_wykres(plik, plik_trace, wybrane_korelacje, wartosci_wybrane=None):
     # -------------------------------------------------------------------------
     # ZAPIS - PDF Z BIALYM TLEM (PNG pozostaje opcjonalny)
     # -------------------------------------------------------------------------
-    # Nazwa pliku nie nadpisuje wynikow dla innego operatora i wyboru g/omega_0.
+    # Nazwa pliku zawiera wybrane metody, operator i zakres parametru.
     opis_korelacji = "_".join(wybrane_korelacje)
     opis_param = (
         f"{nazwa_parametru}{wartosci_do_rysowania[0]:g}-"
@@ -682,10 +818,12 @@ def rysuj_wykres(plik, plik_trace, wybrane_korelacje, wartosci_wybrane=None):
     )
     dopisek_kolumn = "_kolumny_poprawione" if POPRAW_BLEDNE_NAGLOWKI else ""
     opis_stalego_parametru_plik = opis_stalego_parametru.replace("\\omega_0", "omega0")
+    opis_metod = "_".join(pliki.keys())
+    dopisek_pozycji = f"_x{POZYCJA_FERMIONU}" if "fermion_lokalny" in pliki else ""
     nazwa_wyniku = (
-        f"korelacje_random_trace_{opis_korelacji}"
+        f"korelacje_{opis_metod}_{opis_korelacji}"
         f"_L{parametry['M']}_{opis_stalego_parametru_plik}"
-        f"_{opis_param}{dopisek_kolumn}"
+        f"{dopisek_pozycji}_{opis_param}{dopisek_kolumn}"
     )
 
     if save_plot or save_png:
@@ -718,11 +856,10 @@ def rysuj_wykres(plik, plik_trace, wybrane_korelacje, wartosci_wybrane=None):
 # =============================================================================
 
 if __name__ == "__main__":
-    plik, plik_trace = znajdz_pare_plikow(FOLDER_DANE, TRYB_SKANU, PLIK)
+    pliki = znajdz_pliki_metod(FOLDER_DANE, TRYB_SKANU)
     wartosci = G_WYBRANE if TRYB_SKANU == "g" else OMEGA0_WYBRANE
     rysuj_wykres(
-        plik,
-        plik_trace,
+        pliki,
         WYBRANE_KORELACJE,
         wartosci
     )
