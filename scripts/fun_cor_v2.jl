@@ -775,15 +775,15 @@ function main()
     c6_3   = +4.2433580883231209e-02
 
     # GENEROWANIE BAZY - cała magentyzacja
-    # mag = :all
-    # N_up = "all"
-    # println("Generowanie pelnej bazy...")
-    # baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
+    mag = :all
+    N_up = "all"
+    println("Generowanie pelnej bazy...")
+    baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
 
     # GENEROWANIE BAZY - sektor magnetyzacji
-    mag = N_up - M / 2
-    println("Generowanie bazy...")
-    baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
+    # mag = N_up - M / 2
+    # println("Generowanie bazy...")
+    # baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
 
     #println("Wymiar przestrzeni Hilberta: ", length(baza_int))
 
@@ -981,9 +981,9 @@ function main()
                 println("Q_slow_298_292_1121_235_10_6 = ", sum(abs2, Q_slow_298_292_1121_235_10_6) / D)
                 println("Q_slow_289_50_1_304_300_3 = ", sum(abs2, Q_slow_289_50_1_304_300_3) / D)
 
-                println("Suma wag 3,50 = ",W_3 + W_50)
-                println("Suma wag 8,12,62,118 = ",W_8 + W_12 + W_62 + W_118)
-                println("Suma wag 8,4,231,237,62,118,1128,1170 = ",W3_8 + W3_4 + W3_231 + W3_237 + W3_62 + W3_118 + W3_1128 + W3_1170)
+                # println("Suma wag 3,50 = ",W_3 + W_50)
+                # println("Suma wag 8,12,62,118 = ",W_8 + W_12 + W_62 + W_118)
+                # println("Suma wag 8,4,231,237,62,118,1128,1170 = ",W3_8 + W3_4 + W3_231 + W3_237 + W3_62 + W3_118 + W3_1128 + W3_1170)
             end
 
             C_1, wynik_1 = oblicz_komutator(H, Q_1)

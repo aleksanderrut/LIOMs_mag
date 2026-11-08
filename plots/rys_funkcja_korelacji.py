@@ -19,10 +19,11 @@ plt.rcParams["font.size"] = FONT_SIZE
 # Folder do ktorego skopiujesz dwa pliki z serwera mm8.
 # Poprzednia lokalizacja danych historycznych pozostaje tu jako komentarz.
 FOLDER_DANE = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\fun_cor_data\doróbki"
+    #r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\fun_cor_data\doróbki"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026"
 )
 
-TRYB_SKANU = "omega0"
+TRYB_SKANU = "g"
 PLIK = None
 PLIK_TRACE = None
 
@@ -48,7 +49,7 @@ G_WYBRANE = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
 # OMEGA0_WYBRANE = None
 
 # Stale g na potrzeby kontroli pliku i ewentualnego skanu omega0_g.
-G_STALE = 0.75
+G_STALE = 0.65
 omega0_STALE = 0.5
 
 # Plik w dawnej nazwie ma ng11 dla zakresu 0..10, co zwykle oznacza krok 1.
@@ -62,13 +63,20 @@ POMIN_BRAKUJACE_G = True
 WYBRANE_KORELACJE = [
     # "C_slow_8_118_62_4",                       # pierwszy nowy LIOM
     #"C_slow_298_292_1121_235_10_6",         # drugi nowy LIOM
-    "C_slow_8_4_231_237_62_118_1128_1170",
+    #"C_slow_8_4_231_237_62_118_1128_1170",
     #"C_slow_8_12_62_118",
     # "C_slow_3_50",
     #"Q_3",
     #"Q_8",
     # "Q_26",
     # "Q_60",
+    #"C_slow_289_50_1_304_300_3",
+    #"Q_289",
+    # "Q_50",
+    # "Q_1",
+    # "Q_304",
+    # "Q_300",
+    # "Q_3",
 ]
 
 # Plik z opisem elementow bazy operatorow (indeks, sektor RR/RI/IR/II, slowo ferm|bos).
@@ -81,7 +89,7 @@ POKAZ_OPIS_OPERATOROW = True
 FONT_SIZE_OPERATOROW = FONT_SIZE - 1
 
 # Wartość omega_0 wyświetlana w tytule (nie zmienia wczytywanych danych).
-OMEGA_0_TYTUL = 0.5  # Uzywane jako rezerwowy podpis dla dawnego skanu g
+OMEGA_0_TYTUL = 0.65  # Uzywane jako rezerwowy podpis dla dawnego skanu g
 
 # -----------------------------------------------------------------------------
 # POPRAWKA DLA PLIKOW ng11
@@ -128,7 +136,7 @@ FIGSIZE = (15.0, 6.5)
 # =============================================================================
 
 show_plot = True
-save_plot = False   # Zapisuje przezroczysty PDF w folderze, w ktorym lezy skrypt.
+save_plot = False    # Zapisuje PDF z bialym, nieprzezroczystym tlem.
 save_png = False    # Dodatkowo przezroczysty PNG; False = tylko PDF.
 dpi = 300
 
@@ -552,9 +560,9 @@ def rysuj_wykres(plik, plik_trace, wybrane_korelacje, wartosci_wybrane=None):
     wysokosc_rysunku = FIGSIZE[1] + wysokosc_bloku
     fig, ax = plt.subplots(figsize=(FIGSIZE[0], wysokosc_rysunku))
 
-    # Przezroczyste tlo figury i osi (takze dla eksportu PDF/PNG).
-    fig.patch.set_facecolor("none")
-    ax.set_facecolor("none")
+    # Biale tlo figury i osi.
+    fig.patch.set_facecolor("white")
+    ax.set_facecolor("white")
 
     # Miejsce na legende po prawej, proporcje jak w wykresach do seminarium.
     if indeksy_bazy:
@@ -664,7 +672,7 @@ def rysuj_wykres(plik, plik_trace, wybrane_korelacje, wartosci_wybrane=None):
         dodaj_opisy_pod_wykresem(fig, indeksy_bazy, opisy_bazy, wysokosc_rysunku, wysokosc_bloku)
 
     # -------------------------------------------------------------------------
-    # ZAPIS - PRZEZROCZYSTY PDF I PNG
+    # ZAPIS - PDF Z BIALYM TLEM (PNG pozostaje opcjonalny)
     # -------------------------------------------------------------------------
     # Nazwa pliku nie nadpisuje wynikow dla innego operatora i wyboru g/omega_0.
     opis_korelacji = "_".join(wybrane_korelacje)
@@ -686,9 +694,9 @@ def rysuj_wykres(plik, plik_trace, wybrane_korelacje, wartosci_wybrane=None):
         output_filename = output_folder / f"{nazwa_wyniku}.pdf"
         fig.savefig(
             output_filename, dpi=dpi, format="pdf", bbox_inches="tight",
-            pad_inches=0.015, transparent=True, facecolor="none", edgecolor="none"
+            pad_inches=0.015, transparent=False, facecolor="white", edgecolor="white"
         )
-        print(f"\nZapisano przezroczysty PDF:\n{output_filename}")
+        print(f"\nZapisano PDF z bialym tlem:\n{output_filename}")
     if save_png:
         output_filename_png = output_folder / f"{nazwa_wyniku}.png"
         fig.savefig(
