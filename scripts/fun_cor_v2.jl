@@ -122,7 +122,7 @@ function gen_ham_xxz(L::Int, J::Real, Delta::Real, PBC::Bool, baza_int::Vector{T
             new_state_bos = state_bos ⊻ (1 << bit_s)
             new_index = indeks_odwrotny[(state, new_state_bos)]
 
-            H[new_index, i] += g * sz_ferm_s
+            H[new_index, i] += g * (sz_ferm_s + 0.5)
         end
     end
 
@@ -655,6 +655,22 @@ function losuj_q1_gauss(n::Int)
     return q1 / norm(q1)
 end
 
+# STAN POCZATKOWY: JEDEN ELEKTRON NA WYBRANEJ POZYCJI ORAZ LOSOWY GAUSSOWSKI WEKTOR STANU BOZONOWEGO
+function losuj_stan_fermion_lokalny(M::Int, pozycja::Int, baza_int, indeks_odwrotny)
+    # Jeden elektron na wybranej pozycji
+    state_ferm = 1 << (pozycja - 1)
+    # Losowy znormalizowany stan bozonowy
+    Psi_bos = losuj_q1_gauss(1 << M)
+    # Wektor stanu calego ukladu
+    Psi_0 = zeros(ComplexF64, length(baza_int))
+    for state_bos in 0:((1 << M) - 1)
+        indeks = get(indeks_odwrotny,(state_ferm, state_bos),0)
+        indeks != 0 || error("Brak stanu w bazie")
+        Psi_0[indeks] = Psi_bos[state_bos + 1]
+    end
+    return Psi_0
+end
+
 # Przygotowanie korelacji ED - transformacja operatora wykonywana tylko raz dla kazdego g
 function przygotuj_korelacje_ED(wynik_H, A, Psi_0)
     V = wynik_H.vectors
@@ -775,15 +791,15 @@ function main()
     c6_3   = +4.2433580883231209e-02
 
     # GENEROWANIE BAZY - cała magentyzacja
-    mag = :all
-    N_up = "all"
-    println("Generowanie pelnej bazy...")
-    baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
+    # mag = :all
+    # N_up = "all"
+    # println("Generowanie pelnej bazy...")
+    # baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
 
     # GENEROWANIE BAZY - sektor magnetyzacji
-    # mag = N_up - M / 2
-    # println("Generowanie bazy...")
-    # baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
+    mag = N_up - M / 2
+    println("Generowanie bazy...")
+    baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
 
     #println("Wymiar przestrzeni Hilberta: ", length(baza_int))
 
@@ -796,6 +812,12 @@ function main()
         baza_data[i, 5] = baza_bit[i][2]
     end
     Psi_0_wspolne = losuj_q1_gauss(length(baza_int))
+    pozycja_fermionu=5
+    Psi_0_fermion_lokalny = losuj_stan_fermion_lokalny(M, pozycja_fermionu, baza_int, indeks_odwrotny)
+
+    println("Pozycja elektronu: ", pozycja_fermionu)
+    println("Norma stanu lokalnego: ", norm(Psi_0_fermion_lokalny))
+    println("Wymiar przestrzeni Hilberta: ", length(baza_int))
 
     # PETLA PO omega_0; tryb pojedynczej wartosci z argumentu -w:
     omega0_values = [omega0]
@@ -865,6 +887,7 @@ function main()
     # Macierz na wyniki funkcji korelacji
     wyniki_korelacji = Matrix{Float64}(undef, liczba_punktow * t_POINTS, length(kolumny_korelacji))
     wyniki_korelacji_trace = Matrix{Float64}(undef, liczba_punktow * t_POINTS, length(kolumny_korelacji))
+    wyniki_korelacji_lokalny = Matrix{Float64}(undef, liczba_punktow * t_POINTS, length(kolumny_korelacji))
 
     for (k_omega, omega0) in enumerate(omega0_values)
         println("Obliczenia dla omega_0 = ", omega0)
@@ -1057,6 +1080,17 @@ function main()
                 dane_korelacji[a] = przygotuj_korelacje_ED(wynik_H, A, Psi_0)
             end
 
+            # TRZECIA METODA - ELEKTRON LOKALNY + LOSOWE BOZONY
+            Psi_wlasna_lokalny = adjoint(wynik_H.vectors) * Psi_0_fermion_lokalny
+            dane_korelacji_lokalny = Vector{Any}(undef, length(operatory_korelacji))
+            for a in 1:length(operatory_korelacji)
+                # Wykorzystujemy juz obliczona macierz operatora
+                # w bazie wlasnej Hamiltonianu
+                A_wlasna, _, _, W = dane_korelacji[a]
+                Phi_wlasna_lokalny = A_wlasna * Psi_wlasna_lokalny
+                dane_korelacji_lokalny[a] = (A_wlasna, Psi_wlasna_lokalny, Phi_wlasna_lokalny, W)
+            end
+
             # PETLA PO CZASIE
             for (j, t) in enumerate(t_values)
                 fazy = exp.(-im .* wynik_H.values .* t)
@@ -1065,6 +1099,9 @@ function main()
                 wyniki_korelacji[wiersz, liczba_kolumn_parametrow + 1] = t
                 wyniki_korelacji_trace[wiersz, 1:liczba_kolumn_parametrow] = parametry_wiersza
                 wyniki_korelacji_trace[wiersz, liczba_kolumn_parametrow + 1] = t
+                # Parametry i czas dla trzeciej metody
+                wyniki_korelacji_lokalny[wiersz, 1:liczba_kolumn_parametrow] = parametry_wiersza
+                wyniki_korelacji_lokalny[wiersz, liczba_kolumn_parametrow + 1] = t
 
                 for a in 1:length(operatory_korelacji)
                     dane = dane_korelacji[a]
@@ -1074,6 +1111,10 @@ function main()
 
                     C_trace_t = funkcja_korelacji_trace_ED(dane, fazy)
                     wyniki_korelacji_trace[wiersz, a + liczba_kolumn_parametrow + 1] = C_trace_t
+
+                    # Trzecia metoda - lokalny elektron
+                    C_lokalny_t = funkcja_korelacji_ED(dane_korelacji_lokalny[a], fazy)
+                    wyniki_korelacji_lokalny[wiersz, a + liczba_kolumn_parametrow + 1] = C_lokalny_t
                 end
             end
         end
@@ -1087,6 +1128,10 @@ function main()
     save_korelacje_ED(wyniki_korelacji_trace, kolumny_korelacji, PBC;
         nazwa="Korelacje_trace_ED_vs_$(nazwa_skanu)_t", parametry_pliku...,
         tmin=t_MIN, tmax=t_MAX, nt=t_POINTS)
+    # ZAPIS TRZECIEJ METODY:
+    save_korelacje_ED(wyniki_korelacji_lokalny, kolumny_korelacji, PBC;
+        nazwa="Korelacje_fermion_lokalny_ED_vs_$(nazwa_skanu)_t", parametry_pliku...,
+        x=pozycja_fermionu, tmin=t_MIN, tmax=t_MAX, nt=t_POINTS)
 
 end
 
