@@ -791,15 +791,15 @@ function main()
     c6_3   = +4.2433580883231209e-02
 
     # GENEROWANIE BAZY - cała magentyzacja
-    # mag = :all
-    # N_up = "all"
-    # println("Generowanie pelnej bazy...")
-    # baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
+    mag = :all
+    N_up = "all"
+    println("Generowanie pelnej bazy...")
+    baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
 
     # GENEROWANIE BAZY - sektor magnetyzacji
-    mag = N_up - M / 2
-    println("Generowanie bazy...")
-    baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
+    # mag = N_up - M / 2
+    # println("Generowanie bazy...")
+    # baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
 
     #println("Wymiar przestrzeni Hilberta: ", length(baza_int))
 
