@@ -542,7 +542,7 @@ function main()
         baza_data[i, 5] = baza_bit[i][2]
     end
 
-    #Losowe stany
+    #Losowe stany d
     Psi_0 = losuj_q1_gauss(length(baza_int))
     pozycja_fermionu=3
     Psi_0_fermion_lokalny = losuj_stan_fermion_lokalny(M, pozycja_fermionu, baza_int, indeks_odwrotny)
