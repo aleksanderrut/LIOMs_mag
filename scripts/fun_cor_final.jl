@@ -285,21 +285,21 @@ function losuj_q1_gauss(n::Int)
     return q1 / norm(q1)
 end
 
-# LOSOWY STAN POCZATKOWY - FERMION LOKALNY + BOZON Gauss
-function losuj_stan_fermion_lokalny(M::Int, pozycja::Int, baza_int, indeks_odwrotny)
-    # Jeden elektron na wybranej pozycji
-    state_ferm = 1 << (pozycja - 1)
-    # Losowy znormalizowany stan bozonowy
-    Psi_bos = losuj_q1_gauss(1 << M)
-    # Wektor stanu calego ukladu
-    Psi_0 = zeros(ComplexF64, length(baza_int))
-    for state_bos in 0:((1 << M) - 1)
-        indeks = get(indeks_odwrotny,(state_ferm, state_bos),0)
-        indeks != 0 || error("Brak stanu w bazie")
-        Psi_0[indeks] = Psi_bos[state_bos + 1]
-    end
-    return Psi_0
-end
+# # LOSOWY STAN POCZATKOWY - FERMION LOKALNY + BOZON Gauss
+# function losuj_stan_fermion_lokalny(M::Int, pozycja::Int, baza_int, indeks_odwrotny)
+#     # Jeden elektron na wybranej pozycji
+#     state_ferm = 1 << (pozycja - 1)
+#     # Losowy znormalizowany stan bozonowy
+#     Psi_bos = losuj_q1_gauss(1 << M)
+#     # Wektor stanu calego ukladu
+#     Psi_0 = zeros(ComplexF64, length(baza_int))
+#     for state_bos in 0:((1 << M) - 1)
+#         indeks = get(indeks_odwrotny,(state_ferm, state_bos),0)
+#         indeks != 0 || error("Brak stanu w bazie")
+#         Psi_0[indeks] = Psi_bos[state_bos + 1]
+#     end
+#     return Psi_0
+# end
 
 # Przygotowanie korelacji ED - transformacja operatora wykonywana tylko raz dla kazdego g
 function przygotuj_korelacje_ED(wynik_H, A, Psi_0)
@@ -544,8 +544,8 @@ function main()
 
     #Losowe stany
     Psi_0 = losuj_q1_gauss(length(baza_int))
-    pozycja_fermionu = 5
-    Psi_0_fermion_lokalny = losuj_stan_fermion_lokalny(M, pozycja_fermionu, baza_int, indeks_odwrotny)
+#     pozycja_fermionu = 5
+#     Psi_0_fermion_lokalny = losuj_stan_fermion_lokalny(M, pozycja_fermionu, baza_int, indeks_odwrotny)
     # println("Pozycja elektronu: ", pozycja_fermionu)
     # println("Norma stanu lokalnego: ", norm(Psi_0_fermion_lokalny))
     # println("Wymiar przestrzeni Hilberta: ", length(baza_int))
@@ -620,7 +620,7 @@ function main()
     # Macierz na wyniki funkcji korelacji
     wyniki_korelacji = Matrix{Float64}(undef, liczba_punktow * t_POINTS, length(kolumny_korelacji))
     wyniki_korelacji_trace = Matrix{Float64}(undef, liczba_punktow * t_POINTS, length(kolumny_korelacji))
-    wyniki_korelacji_lokalny = Matrix{Float64}(undef, liczba_punktow * t_POINTS, length(kolumny_korelacji))
+#     wyniki_korelacji_lokalny = Matrix{Float64}(undef, liczba_punktow * t_POINTS, length(kolumny_korelacji))
 
     for (k_omega, omega0) in enumerate(omega0_values)
         println("Obliczenia dla omega_0 = ", omega0)
@@ -669,18 +669,18 @@ function main()
                 dane_korelacji[a] = przygotuj_korelacje_ED(wynik_H, A, Psi_0)
             end
 
-            # ELEKTRON LOKALNY + LOSOWE BOZONY
-            dane_korelacji_lokalny = Vector{Any}(undef, length(operatory_korelacji))
-            for a in 1:length(operatory_korelacji)
-                A = operatory_korelacji[a]
-                dane_korelacji_lokalny[a] = przygotuj_korelacje_ED(wynik_H, A, Psi_0_fermion_lokalny)
-            end
+#             # ELEKTRON LOKALNY + LOSOWE BOZONY
+#             dane_korelacji_lokalny = Vector{Any}(undef, length(operatory_korelacji))
+#             for a in 1:length(operatory_korelacji)
+#                 A = operatory_korelacji[a]
+#                 dane_korelacji_lokalny[a] = przygotuj_korelacje_ED(wynik_H, A, Psi_0_fermion_lokalny)
+#             end
 
             # NORMALIZACJA FUNKCJI KORELACJI: C(t) / C(0)
             fazy_0 = ones(ComplexF64, length(wynik_H.values))
             C_0 = [funkcja_korelacji_ED(dane, fazy_0) for dane in dane_korelacji]
             C_0_trace = [funkcja_korelacji_trace_ED(dane, fazy_0) for dane in dane_korelacji]
-            C_0_lokalny = [funkcja_korelacji_ED(dane, fazy_0) for dane in dane_korelacji_lokalny]
+#             C_0_lokalny = [funkcja_korelacji_ED(dane, fazy_0) for dane in dane_korelacji_lokalny]
 
             # PETLA PO CZASIE
             for (j, t) in enumerate(t_values)
@@ -691,8 +691,8 @@ function main()
                 wyniki_korelacji[wiersz, liczba_kolumn_parametrow + 1] = t
                 wyniki_korelacji_trace[wiersz, 1:liczba_kolumn_parametrow] = parametry_wiersza
                 wyniki_korelacji_trace[wiersz, liczba_kolumn_parametrow + 1] = t
-                wyniki_korelacji_lokalny[wiersz, 1:liczba_kolumn_parametrow] = parametry_wiersza
-                wyniki_korelacji_lokalny[wiersz, liczba_kolumn_parametrow + 1] = t
+#                 wyniki_korelacji_lokalny[wiersz, 1:liczba_kolumn_parametrow] = parametry_wiersza
+#                 wyniki_korelacji_lokalny[wiersz, liczba_kolumn_parametrow + 1] = t
 
                 for a in 1:length(operatory_korelacji)
 
@@ -702,8 +702,8 @@ function main()
                     C_trace_t = funkcja_korelacji_trace_ED(dane_korelacji[a], fazy) / C_0_trace[a]
                     wyniki_korelacji_trace[wiersz, a + liczba_kolumn_parametrow + 1] = C_trace_t
 
-                    C_lokalny_t = funkcja_korelacji_ED(dane_korelacji_lokalny[a], fazy) / C_0_lokalny[a]
-                    wyniki_korelacji_lokalny[wiersz, a + liczba_kolumn_parametrow + 1] = C_lokalny_t
+#                     C_lokalny_t = funkcja_korelacji_ED(dane_korelacji_lokalny[a], fazy) / C_0_lokalny[a]
+#                     wyniki_korelacji_lokalny[wiersz, a + liczba_kolumn_parametrow + 1] = C_lokalny_t
                 end
             end
         end
@@ -717,9 +717,9 @@ function main()
     save_korelacje_ED(wyniki_korelacji_trace, kolumny_korelacji, PBC;
         nazwa="Korelacje_trace_ED_vs_$(nazwa_skanu)_t", parametry_pliku...,
         tmin=t_MIN, tmax=t_MAX, nt=t_POINTS)
-    save_korelacje_ED(wyniki_korelacji_lokalny, kolumny_korelacji, PBC;
-        nazwa="Korelacje_fermion_lokalny_ED_vs_$(nazwa_skanu)_t", parametry_pliku...,
-        x=pozycja_fermionu, tmin=t_MIN, tmax=t_MAX, nt=t_POINTS)
+#     save_korelacje_ED(wyniki_korelacji_lokalny, kolumny_korelacji, PBC;
+#         nazwa="Korelacje_fermion_lokalny_ED_vs_$(nazwa_skanu)_t", parametry_pliku...,
+#         x=pozycja_fermionu, tmin=t_MIN, tmax=t_MAX, nt=t_POINTS)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
