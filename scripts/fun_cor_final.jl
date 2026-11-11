@@ -329,7 +329,7 @@ end
 
 #ZAPIS - OGOLNY
 function save_data(data, filename, PBC; kwargs...)
-    folder = raw"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\fun_cor_data"
+    folder = joinpath(@__DIR__, "fun_cor_data")
     mkpath(folder)
     filename_full = "$(filename)_PBC$(PBC)"
     for (key, value) in kwargs
@@ -342,7 +342,7 @@ end
 
 # ZAPIS FUNKCJI KORELACJI ED VS g / omega0 I t
 function save_korelacje_ED(wyniki_korelacji, kolumny_korelacji, PBC; nazwa="Korelacje_ED_vs_g_t", kwargs...)
-    folder = raw"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\fun_cor_data"
+    folder = joinpath(@__DIR__, "fun_cor_data")
     mkpath(folder)
     filename_full = "$(nazwa)_PBC$(PBC)"
     for (key, value) in kwargs
@@ -359,7 +359,7 @@ end
 
 # ZAPIS MACIERZY Tr([H,Q]†[H,Q])/D VS g / omega0
 function save_wyniki_vs_g(wyniki, kolumny, PBC; nazwa="Tr_komutatorow_vs_g", kwargs...)
-    folder = raw"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\fun_cor_data"
+    folder = joinpath(@__DIR__, "fun_cor_data")
     mkpath(folder)
     filename_full = "$(nazwa)_PBC$(PBC)"
     for (key, value) in kwargs
@@ -439,13 +439,13 @@ function main()
         # omega0_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
         omega0_values = range(0.0, 2.0, length=11)
     else
-        omega0_values = [1.0]
+        omega0_values = [0.65]
     end
 
     # ARGUMENT g
     if SKAN_G
         # g_values = range(0.0, 10.0, length=51)
-        g_values = [0.5, 1.0]
+        g_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
     else
         g_values = [g]
     end
@@ -498,6 +498,41 @@ function main()
     c_3   * operatory_z_bazy[3]
     )
 
+    Q_slow_289_50_1_304_300 = (
+    c_289 * operatory_z_bazy[289] +
+    c_50  * operatory_z_bazy[50]  +
+    c_1   * operatory_z_bazy[1]   +
+    c_304 * operatory_z_bazy[304] +
+    c_300 * operatory_z_bazy[300]
+    )
+
+    Q_slow_289_50_1_304 = (
+    c_289 * operatory_z_bazy[289] +
+    c_50  * operatory_z_bazy[50]  +
+    c_1   * operatory_z_bazy[1]   +
+    c_304 * operatory_z_bazy[304] 
+    )
+
+    Q_slow_289_50_1 = (
+    c_289 * operatory_z_bazy[289] +
+    c_50  * operatory_z_bazy[50]  +
+    c_1   * operatory_z_bazy[1]
+    )
+
+    Q_slow_289_50 = (
+    c_289 * operatory_z_bazy[289] +
+    c_50  * operatory_z_bazy[50]
+    )
+
+    # LISTA WOLNYCH MODOW
+    wolne_mody = Matrix[
+    Q_slow_289_50_1_304_300_3,
+    Q_slow_289_50_1_304_300,
+    Q_slow_289_50_1_304,
+    Q_slow_289_50_1,
+    Q_slow_289_50
+    ]
+
     baza_data = Matrix{Any}(undef, length(baza_int), 5)
     for i in 1:length(baza_int)
         baza_data[i, 1] = i
@@ -509,7 +544,7 @@ function main()
 
     #Losowe stany
     Psi_0 = losuj_q1_gauss(length(baza_int))
-    pozycja_fermionu=1
+    pozycja_fermionu=3
     Psi_0_fermion_lokalny = losuj_stan_fermion_lokalny(M, pozycja_fermionu, baza_int, indeks_odwrotny)
     # println("Pozycja elektronu: ", pozycja_fermionu)
     # println("Norma stanu lokalnego: ", norm(Psi_0_fermion_lokalny))
@@ -566,14 +601,14 @@ function main()
     # Pierwsze kolumny: parametry skanowania. Pozostale: Tr([H,Q]†[H,Q])/D.
     kolumny = vcat(kolumny_parametrow,
         ["Q_$numer" for numer in numery_operatorow],
-        ["Q_slow_289_50_1_304_300_3"]
+        ["Q_slow_289_50_1_304_300_3", "Q_slow_289_50_1_304_300", "Q_slow_289_50_1_304", "Q_slow_289_50_1", "Q_slow_289_50"]
     )
     wyniki = Matrix{Float64}(undef, liczba_punktow, length(kolumny))
 
     # Pierwsze kolumny: parametry, potem czas t. Pozostale: C_Q(t)
     kolumny_korelacji = vcat(kolumny_parametrow, ["t"],
         ["Q_$numer" for numer in numery_operatorow],
-        ["C_slow_289_50_1_304_300_3"]
+        ["C_slow_289_50_1_304_300_3", "C_slow_289_50_1_304_300", "C_slow_289_50_1_304", "C_slow_289_50_1", "C_slow_289_50"]
     )
 
     # PARAMETRY KORELACJI CZASOWYCH
@@ -613,15 +648,19 @@ function main()
                 _, wynik = oblicz_komutator(H, operatory_z_bazy[numer])
                 push!(wyniki_komutatorow, wynik)
             end
-            _, wynik_slow_1 = oblicz_komutator(H, Q_slow_289_50_1_304_300_3)
-            wyniki[wiersz_parametrow, :] = vcat(parametry_wiersza, wyniki_komutatorow, [wynik_slow_1])
+            wyniki_wolnych_modow = Float64[]
+            for Q in wolne_mody
+                _, wynik = oblicz_komutator(H, Q)
+                push!(wyniki_wolnych_modow, wynik)
+            end
+            wyniki[wiersz_parametrow, :] = vcat(parametry_wiersza,wyniki_komutatorow, wyniki_wolnych_modow)
 
             #korelacja czasowa ED
-            operatory_korelacji = Matrix[operatory_z_bazy[numer] for numer in numery_operatorow] #WYBOR OPERATOROW
-            push!(operatory_korelacji, Q_slow_289_50_1_304_300_3)
-            
+            operatory_korelacji = Matrix[operatory_z_bazy[numer] for numer in numery_operatorow]
+            append!(operatory_korelacji, wolne_mody)
+
             # DIAGONALIZACJA ED - RAZ DLA KAZDEGO g lub omega_0
-            wynik_H = eigen(Symmetric(H)) 
+            wynik_H = eigen(Symmetric(H))
 
             # LOSOWY STAN POCZATKOWY
             dane_korelacji = Vector{Any}(undef, length(operatory_korelacji))
