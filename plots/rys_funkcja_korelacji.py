@@ -19,8 +19,9 @@ plt.rcParams["font.size"] = FONT_SIZE
 # Folder z wynikami pobranymi z serwera mm8.
 FOLDER_DANE = Path(
     #r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\fun_cor_data\doróbki"
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\jeden_elektron"
+    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\jeden_elektron"
     #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\wszystkie_magnetyzacje"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_12_17.11.2026\half filling"
 )
 
 # TRYB WYKRESU: "omega0", "g" albo "omega0_g".
@@ -29,7 +30,7 @@ TRYB_SKANU = "g"
 # Niezalezne wlaczanie metod korelacji.
 POKAZ_RANDOM_STATE = False
 POKAZ_TRACE = True
-POKAZ_FERMION_LOKALNY = True
+POKAZ_FERMION_LOKALNY = False
 
 # Pozycja elektronu w trzeciej metodzie (zgodna z x w nazwie pliku).
 POZYCJA_FERMIONU = 5
@@ -40,7 +41,7 @@ PLIK_TRACE = None
 PLIK_FERMION_LOKALNY = None
 
 # WYBOR WARTOSCI SPRZEZENIA (dla skanowania g)
-G_WYBRANE = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
+G_WYBRANE = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 4.0, 6.0, 8.0, 10.0]
 
 # WYBOR WARTOSCI omega_0 (dla nowego skanowania omega_0)
 # None: automatycznie rysuj wszystkie wartosci omega0 z pliku.
@@ -61,16 +62,11 @@ POMIN_BRAKUJACE_G = True
 # WYBOR FUNKCJI KORELACJI
 # Tutaj wpisujesz RZECZYWISTE operatory, ktore chcesz narysowac.
 WYBRANE_KORELACJE = [
-    # "C_slow_8_118_62_4",                       # pierwszy nowy LIOM
-    #"C_slow_298_292_1121_235_10_6",         # drugi nowy LIOM
-    #"C_slow_8_4_231_237_62_118_1128_1170",
-    #"C_slow_8_12_62_118",
-    # "C_slow_3_50",
-    #"Q_3",
-    # "Q_8",
-    # "Q_26",
-    # "Q_60",
-    #"C_slow_289_50_1_304_300_3",
+    "C_slow_289_50_1_304_300_3",
+    #"C_slow_289_50_1_304_300",
+    #"C_slow_289_50_1_304",
+    #"C_slow_289_50_1",
+    #"C_slow_289_50",
     # "Q_289",
     # "Q_50",
     # "Q_1",
