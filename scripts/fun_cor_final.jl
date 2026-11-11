@@ -454,15 +454,15 @@ function main()
     # =========================================================================================
     # GENEROWANIE BAZY - Sektor magnetyzacji czy czy bez podziału na sektory 
     # cała magentyzacja
-    mag = :all
-    N_up = "all"
-    println("Generowanie pelnej bazy...")
-    baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
+    # mag = :all
+    # N_up = "all"
+    # println("Generowanie pelnej bazy...")
+    # baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
 
     # sektor magnetyzacji
-    # mag = N_up - M / 2
-    # println("Generowanie bazy...")
-    # baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
+    mag = N_up - M / 2
+    println("Generowanie bazy...")
+    baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
 
     # WCZYTANIE ZAPISANEJ BAZY OPERATOROW
     plik_bazy_operatorow = joinpath(@__DIR__, "liom_mag_dane", "bazy",
@@ -478,8 +478,8 @@ function main()
         operatory_z_bazy[numer] = normalizuj_operator_HS(Q)
     end
 
-    save_data(operatory_z_bazy[1], "Q_1", PBC; L_x=M, N_up=N_up)
-    save_data(operatory_z_bazy[3], "Q_3", PBC; L_x=M, N_up=N_up)
+    #save_data(operatory_z_bazy[1], "Q_1", PBC; L_x=M, N_up=N_up)
+    #save_data(operatory_z_bazy[3], "Q_3", PBC; L_x=M, N_up=N_up)
 
     # WOLNY MOD dla M=3 ten schodzący do zera
     c_289 = -5.1794706276320912e-01
@@ -544,7 +544,7 @@ function main()
 
     #Losowe stany d
     Psi_0 = losuj_q1_gauss(length(baza_int))
-    pozycja_fermionu=3
+    pozycja_fermionu = 5
     Psi_0_fermion_lokalny = losuj_stan_fermion_lokalny(M, pozycja_fermionu, baza_int, indeks_odwrotny)
     # println("Pozycja elektronu: ", pozycja_fermionu)
     # println("Norma stanu lokalnego: ", norm(Psi_0_fermion_lokalny))
@@ -640,7 +640,7 @@ function main()
 
             # generowanie Hamiltonianu (operatory Q wygenerowano juz z bazy)
             H = gen_ham_xxz(M, J, Delta, PBC, baza_int, indeks_odwrotny, omega0, g)
-            save_data(H, "Ham", PBC; L_x=M, N_up, J, Delta, omega0, g)
+            #save_data(H, "Ham", PBC; L_x=M, N_up, J, Delta, omega0, g)
 
             #policzenie komutatorów i zapisanie wyników
             wyniki_komutatorow = Float64[]
