@@ -264,6 +264,13 @@ function generuj_operator_z_bazy(numer, lista_operatorow, L, baza_int, indeks_od
 end
 # =============================================================================
 
+# NORMALIZACJA OPERATORA WZGLEDEM NORMY HILBERTA-SCHMIDTA
+function normalizuj_operator_HS(Q)
+    D = size(Q, 1)
+    norma = sqrt(sum(abs2, Q) / D)
+    return Q / norma
+end
+
 # OBLICZANIE KOMUTATORA
 function oblicz_komutator(H, Q)
     C = H * Q - Q * H
@@ -432,13 +439,13 @@ function main()
         # omega0_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
         omega0_values = range(0.0, 2.0, length=11)
     else
-        omega0_values = [omega0]
+        omega0_values = [1.0]
     end
 
     # ARGUMENT g
     if SKAN_G
         # g_values = range(0.0, 10.0, length=51)
-        g_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
+        g_values = [0.5, 1.0]
     else
         g_values = [g]
     end
@@ -467,7 +474,8 @@ function main()
 
     operatory_z_bazy = Dict{Int, Matrix{ComplexF64}}()
     for numer in numery_operatorow
-        operatory_z_bazy[numer] = generuj_operator_z_bazy(numer, lista_operatorow, M, baza_int, indeks_odwrotny, PBC)
+        Q = generuj_operator_z_bazy(numer, lista_operatorow, M, baza_int, indeks_odwrotny, PBC)
+        operatory_z_bazy[numer] = normalizuj_operator_HS(Q)
     end
 
     save_data(operatory_z_bazy[1], "Q_1", PBC; L_x=M, N_up=N_up)
@@ -501,7 +509,7 @@ function main()
 
     #Losowe stany
     Psi_0 = losuj_q1_gauss(length(baza_int))
-    pozycja_fermionu=5
+    pozycja_fermionu=1
     Psi_0_fermion_lokalny = losuj_stan_fermion_lokalny(M, pozycja_fermionu, baza_int, indeks_odwrotny)
     # println("Pozycja elektronu: ", pozycja_fermionu)
     # println("Norma stanu lokalnego: ", norm(Psi_0_fermion_lokalny))

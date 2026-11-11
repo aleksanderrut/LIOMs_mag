@@ -411,43 +411,46 @@ function rozwin_operator(sektor, fermion_1, bozon_2)
     return wyrazy
 end
 
+
 # DZIAŁANIE JEDNEGO STRINGU NA STAN BITOWY
 function dzialaj_na_stan(state, operatory, przesuniecie, L)
     new_state = state
     amplituda = 1.0
+
     for (x, op) in enumerate(operatory)
-
-        op == 0 && continue
-
         # Numer bitu, z uwzględnieniem translacji
         bit_s = mod(przesuniecie + x - 1, L)
-
         spin = (new_state >> bit_s) & 1
 
-        if op == 1
+        if op == 0
+            # I |0> = |0>
+            # I |1> = |1>
+            continue
+
+        elseif op == 1
             # S+ |0> = |1>
             # S+ |1> = 0
-            spin == 1 && return nothing
-
-            new_state = new_state ⊻ (1 << bit_s)
-
-        elseif op == 3
-            # S- |1> = |0>
-            # S- |0> = 0
-            spin == 0 && return nothing
-
+            if spin == 1
+                return nothing
+            end
             new_state = new_state ⊻ (1 << bit_s)
 
         elseif op == 2
             # Sz |0> = -1/2 |0>
             # Sz |1> = +1/2 |1>
             amplituda *= spin - 0.5
+
+        elseif op == 3
+            # S- |1> = |0>
+            # S- |0> = 0
+            if spin == 0
+                return nothing
+            end
+            new_state = new_state ⊻ (1 << bit_s)
         end
     end
-
     return new_state, amplituda
 end
-
 
 # GENEROWANIE MACIERZY OPERATORA O_i
 function generuj_operator_z_bazy(numer, lista_operatorow, L, baza_int, indeks_odwrotny, PBC)
@@ -493,8 +496,6 @@ function generuj_operator_z_bazy(numer, lista_operatorow, L, baza_int, indeks_od
     end
     return Q
 end
-
-
 # =============================================================================
 
 # NORMALIZACJA OPERATORA
@@ -661,7 +662,7 @@ function main()
     # g_POINTS = 51
     # g_values = range(g_MIN, g_MAX, length=g_POINTS)
 
-    g_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
+    g_values = [0.5, 1.0]
     g_MIN = minimum(g_values)
     g_MAX = maximum(g_values)
     g_POINTS = length(g_values)
@@ -744,7 +745,7 @@ function main()
         baza_data[i, 5] = baza_bit[i][2]
     end
     Psi_0_wspolne = losuj_q1_gauss(length(baza_int))
-    pozycja_fermionu=5
+    pozycja_fermionu=1
     Psi_0_fermion_lokalny = losuj_stan_fermion_lokalny(M, pozycja_fermionu, baza_int, indeks_odwrotny)
 
     println("Pozycja elektronu: ", pozycja_fermionu)
@@ -752,7 +753,7 @@ function main()
     println("Wymiar przestrzeni Hilberta: ", length(baza_int))
 
     # PETLA PO omega_0; tryb pojedynczej wartosci z argumentu -w:
-    omega0_values = [omega0]
+    omega0_values = [1.0]
     # omega0_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
     # omega0_values = range(0.0, 2.0, length=11)
     
@@ -836,9 +837,9 @@ function main()
             H, Q_1, Q_3, Q_4, Q_8, Q_12, Q_50, Q_62, Q_118, Q_231, Q_237, Q_289, Q_300, Q_304, Q_1128, Q_1170, Q_26, Q_60, Q_6, Q_10, Q_235, Q_292, Q_298, Q_1121 =
             gen_ham_xxz(M, J, Delta, PBC, baza_int, indeks_odwrotny, omega0, g)
 
-            # save_data(H, "Ham", PBC; L_x=M, N_up, J, Delta, omega0)
-            # save_data(Q_3, "Q_3", PBC; L_x=M, N_up, J, Delta, omega0)
-            # save_data(Q_4, "Q_4", PBC; L_x=M, N_up, J, Delta, omega0)
+            save_data(H, "Ham", PBC; L_x=M, N_up, J, Delta, omega0)
+            save_data(Q_1, "Q_1", PBC; L_x=M, N_up, J, Delta, omega0)
+            save_data(Q_3, "Q_3", PBC; L_x=M, N_up, J, Delta, omega0)
             # save_data(Q_8, "Q_8", PBC; L_x=M, N_up, J, Delta, omega0)
 
             if k == 1
