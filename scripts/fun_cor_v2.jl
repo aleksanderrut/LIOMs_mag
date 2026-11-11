@@ -336,234 +336,166 @@ end
 
 # =============================================================================
 
-# # WCZYTYWANIE OPERATORÓW Z ZAPISANEJ BAZY
-# function wczytaj_baze_operatorow(filename)
-#     lista_operatorow = []
-#     for (nr, linia) in enumerate(eachline(filename))
-#         pola = split(strip(linia))
-#         length(pola) == 3 || error("Niepoprawny wiersz $nr")
-#         # Pierwsza kolumna jest ignorowana
-#         sektor = String(pola[2])
-#         nogi = split(pola[3], "|")
-#         length(nogi) == 2 || error("Niepoprawny zapis operatora w wierszu $nr")
+# WCZYTYWANIE OPERATORÓW Z ZAPISANEJ BAZY
+function wczytaj_baze_operatorow(filename)
+    lista_operatorow = []
+    for linia in eachline(filename)
+        pola = split(strip(linia))
+        # Pierwsza kolumna jest ignorowana
+        sektor = String(pola[2])
+        nogi = split(pola[3], "|")
 
-#         # Zamiana znaków na cyfry 0,1,2,3
-#         fermion_1 = [parse(Int, string(c)) for c in nogi[1]]
-#         bozon_2  = [parse(Int, string(c)) for c in nogi[2]]
-#         push!(lista_operatorow, (sektor, fermion_1, bozon_2))
-#     end
-#     println("Wczytano $(length(lista_operatorow)) operatorów")
-#     return lista_operatorow
-# end
+        # Zamiana znaków na cyfry 0,1,2,3
+        fermion_1 = [parse(Int, string(c)) for c in nogi[1]]
+        bozon_2  = [parse(Int, string(c)) for c in nogi[2]]
+        push!(lista_operatorow, (sektor, fermion_1, bozon_2))
+    end
+    println("Wczytano $(length(lista_operatorow)) operatorów")
+    return lista_operatorow
+end
 
-# # SPRZĘŻENIE HERMITOWSKIE
-# function sprzezenie_operatora(lista)
-#     lista_hc = copy(lista)
-#     for i in eachindex(lista)
-#         if lista[i] == 1
-#             lista_hc[i] = 3       # S+ -> S-
-#         elseif lista[i] == 3
-#             lista_hc[i] = 1       # S- -> S+
-#         else
-#             lista_hc[i] = lista[i]  # I i Sz bez zmian
-#         end
-#     end
-#     return lista_hc
-# end
+# SPRZĘŻENIE HERMITOWSKIE
+function sprzezenie_operatora(lista)
+    lista_hc = copy(lista)
+    for i in eachindex(lista)
+        if lista[i] == 1
+            lista_hc[i] = 3       # S+ -> S-
+        elseif lista[i] == 3
+            lista_hc[i] = 1       # S- -> S+
+        else
+            lista_hc[i] = lista[i]  # I i Sz bez zmian
+        end
+    end
+    return lista_hc
+end
 
-# # ROZWINIĘCIE JEDNEJ NOGI W SEKTORZE R LUB I
-# function rozwin_noge(lista, sektor)
-#     # Sprzężenie hermitowskie operatora
-#     lista_hc = sprzezenie_operatora(lista)
-#     if sektor == 'R'
-#         wsp_1 = 1.0
-#         wsp_2 = 1.0
-#     elseif sektor == 'I'
-#         wsp_1 =  im
-#         wsp_2 = -im
-#     end
-#     # Każdy element: (operator, współczynnik)
-#     wyrazy = [(lista, wsp_1), (lista_hc, wsp_2)]
-#     return wyrazy
-# end
+# ROZWINIĘCIE JEDNEJ NOGI W SEKTORZE R LUB I
+function rozwin_noge(lista, sektor)
+    # Sprzężenie hermitowskie operatora
+    lista_hc = sprzezenie_operatora(lista)
+    if sektor == 'R'
+        wsp_1 = 1.0
+        wsp_2 = 1.0
+    elseif sektor == 'I'
+        wsp_1 =  im
+        wsp_2 = -im
+    end
+    # Każdy element: (operator, współczynnik)
+    wyrazy = [(lista, wsp_1), (lista_hc, wsp_2)]
+    return wyrazy
+end
 
-# # ROZWINIĘCIE CAŁEGO OPERATORA NA DWÓCH NOGACH
-# function rozwin_operator(sektor, fermion_1, bozon_2)
-#     sektor_fermion = sektor[1]
-#     fermion_rozwiniety = rozwin_noge(fermion_1, sektor_fermion)
-#     sektor_bozon = sektor[2]
-#     bozon_rozwiniety = rozwin_noge(bozon_2, sektor_bozon)
-#     wyrazy = []
+# ROZWINIĘCIE CAŁEGO OPERATORA NA DWÓCH NOGACH
+function rozwin_operator(sektor, fermion_1, bozon_2)
+    sektor_fermion = sektor[1]
+    fermion_rozwiniety = rozwin_noge(fermion_1, sektor_fermion)
+    sektor_bozon = sektor[2]
+    bozon_rozwiniety = rozwin_noge(bozon_2, sektor_bozon)
+    wyrazy = []
 
-#     # Każdy wyraz fermionowy mnożymy przez każdy wyraz bozonowy
-#     for wyraz_fermion in fermion_rozwiniety
-#         # Rozdzielenie operatora i jego współczynnika
-#         operator_fermion = wyraz_fermion[1]
-#         wspolczynnik_fermion = wyraz_fermion[2]
-#         for wyraz_bozon in bozon_rozwiniety
-#             # Rozdzielenie operatora i jego współczynnika
-#             operator_bozon = wyraz_bozon[1]
-#             wspolczynnik_bozon = wyraz_bozon[2]
+    # Każdy wyraz fermionowy mnożymy przez każdy wyraz bozonowy
+    for wyraz_fermion in fermion_rozwiniety
+        # Rozdzielenie operatora i jego współczynnika
+        operator_fermion = wyraz_fermion[1]
+        wspolczynnik_fermion = wyraz_fermion[2]
+        for wyraz_bozon in bozon_rozwiniety
+            # Rozdzielenie operatora i jego współczynnika
+            operator_bozon = wyraz_bozon[1]
+            wspolczynnik_bozon = wyraz_bozon[2]
+            wspolczynnik = wspolczynnik_fermion * wspolczynnik_bozon # Mnożenie współczynników
 
-#             wspolczynnik = wspolczynnik_fermion * wspolczynnik_bozon # Mnożenie współczynników
+            # Zapisanie wyrazu: (operator fermionowy, operator bozonowy, współczynnik)
+            push!(wyrazy, (operator_fermion, operator_bozon, wspolczynnik))
+        end
+    end
+    return wyrazy
+end
 
-#             # Zapisanie wyrazu: (operator fermionowy, operator bozonowy, współczynnik)
-#             push!(wyrazy, (operator_fermion, operator_bozon, wspolczynnik))
-#         end
-#     end
-#     return wyrazy
-# end
+# DZIAŁANIE JEDNEGO STRINGU NA STAN BITOWY
+function dzialaj_na_stan(state, operatory, przesuniecie, L)
+    new_state = state
+    amplituda = 1.0
+    for (x, op) in enumerate(operatory)
 
-# # DZIAŁANIE JEDNEGO STRINGU NA STAN BITOWY
-# function dzialaj_na_stan(state, operatory, przesuniecie, L)
-#     new_state = state
-#     amplituda = 1.0
-#     for (x, op) in enumerate(operatory)
+        op == 0 && continue
 
-#         op == 0 && continue
+        # Numer bitu, z uwzględnieniem translacji
+        bit_s = mod(przesuniecie + x - 1, L)
 
-#         # Numer bitu, z uwzględnieniem translacji
-#         bit_s = mod(przesuniecie + x - 1, L)
+        spin = (new_state >> bit_s) & 1
 
-#         spin = (new_state >> bit_s) & 1
+        if op == 1
+            # S+ |0> = |1>
+            # S+ |1> = 0
+            spin == 1 && return nothing
 
-#         if op == 1
-#             # S+ |0> = |1>
-#             # S+ |1> = 0
-#             spin == 1 && return nothing
+            new_state = new_state ⊻ (1 << bit_s)
 
-#             new_state = new_state ⊻ (1 << bit_s)
+        elseif op == 3
+            # S- |1> = |0>
+            # S- |0> = 0
+            spin == 0 && return nothing
 
-#         elseif op == 3
-#             # S- |1> = |0>
-#             # S- |0> = 0
-#             spin == 0 && return nothing
+            new_state = new_state ⊻ (1 << bit_s)
 
-#             new_state = new_state ⊻ (1 << bit_s)
+        elseif op == 2
+            # Sz |0> = -1/2 |0>
+            # Sz |1> = +1/2 |1>
+            amplituda *= spin - 0.5
+        end
+    end
 
-#         elseif op == 2
-#             # Sz |0> = -1/2 |0>
-#             # Sz |1> = +1/2 |1>
-#             amplituda *= spin - 0.5
-#         end
-#     end
+    return new_state, amplituda
+end
 
-#     return new_state, amplituda
-# end
 
-# # GENEROWANIE MACIERZY OPERATORA O_i
-# function generuj_operator_z_bazy(
-#     numer,
-#     lista_operatorow,
-#     L,
-#     baza_int,
-#     indeks_odwrotny;
-#     PBC=true,
-# )
+# GENEROWANIE MACIERZY OPERATORA O_i
+function generuj_operator_z_bazy(numer, lista_operatorow, L, baza_int, indeks_odwrotny, PBC)
+    sektor, gora, dol = lista_operatorow[numer] # Odczyt operatora o podanym numerze
+    wyrazy = rozwin_operator(sektor, gora, dol) # Rozwinięcie RR, RI, IR lub II
+    zasieg = findlast(x -> gora[x] != 0 || dol[x] != 0, eachindex(gora)) # Faktyczny zasięg operatora
 
-#     # Odczyt operatora o podanym numerze
-#     1 <= numer <= length(lista_operatorow) ||
-#         error("Numer operatora poza zakresem")
+    # PBC: wszystkie L położeń
+    # OBC: tylko położenia mieszczące się w łańcuchu
+    if PBC
+        przesuniecia = 0:L-1
+    else
+        przesuniecia = 0:L-zasieg
+    end
+        ile_stanow = length(baza_int)
 
-#     sektor, gora, dol = lista_operatorow[numer]
+    Q = zeros(ComplexF64, ile_stanow, ile_stanow)
+    # Pętla po stanach początkowych
+    for i in 1:ile_stanow
+        state, state_bos = baza_int[i]
+        # Suma po translacjach
+        for przesuniecie in przesuniecia
 
-#     length(gora) <= L ||
-#         error("Długość operatora jest większa niż L")
+            # Suma po wyrazach rozwinięcia symetrii
+            for (op_gora, op_dol, wsp) in wyrazy
 
-#     # Rozwinięcie RR, RI, IR lub II
-#     wyrazy = rozwin_operator(sektor, gora, dol)
+                wynik_f = dzialaj_na_stan(state, op_gora, przesuniecie, L)
+                wynik_f === nothing && continue
 
-#     # Faktyczny zasięg operatora
-#     zasieg = findlast(
-#         x -> gora[x] != 0 || dol[x] != 0,
-#         eachindex(gora)
-#     )
+                wynik_b = dzialaj_na_stan(state_bos, op_dol, przesuniecie, L)
+                wynik_b === nothing && continue
 
-#     isnothing(zasieg) &&
-#         error("Operator identycznościowy")
+                new_state, amp_f = wynik_f
+                new_state_bos, amp_b = wynik_b
 
-#     # Translacje:
-#     # PBC: wszystkie L położeń
-#     # OBC: tylko położenia mieszczące się w łańcuchu
-#     przesuniecia = PBC ? (0:L-1) : (0:L-zasieg)
+                new_index = get(indeks_odwrotny, (new_state, new_state_bos), 0) # Szukanie indeksu nowego stanu w bazie
+                new_index == 0 && continue # Jeśli stan wypada poza wybrany sektor
 
-#     ile_stanow = length(baza_int)
+                # Wpis do macierzy operatora
+                Q[new_index, i] += wsp * amp_f * amp_b
+            end
+        end
+    end
+    return Q
+end
 
-#     # ComplexF64 obsługuje również operatory RI i IR
-#     Q = zeros(ComplexF64, ile_stanow, ile_stanow)
-
-#     # Pętla po stanach początkowych
-#     for i in 1:ile_stanow
-
-#         state, state_bos = baza_int[i]
-
-#         # Suma po translacjach
-#         for przesuniecie in przesuniecia
-
-#             # Suma po wyrazach rozwinięcia symetrii
-#             for (op_gora, op_dol, wsp) in wyrazy
-
-#                 wynik_f = dzialaj_na_stan(
-#                     state, op_gora, przesuniecie, L
-#                 )
-
-#                 wynik_f === nothing && continue
-
-#                 wynik_b = dzialaj_na_stan(
-#                     state_bos, op_dol, przesuniecie, L
-#                 )
-
-#                 wynik_b === nothing && continue
-
-#                 new_state, amp_f = wynik_f
-#                 new_state_bos, amp_b = wynik_b
-
-#                 # Szukanie indeksu nowego stanu w bazie
-#                 new_index = get(
-#                     indeks_odwrotny,
-#                     (new_state, new_state_bos),
-#                     0
-#                 )
-
-#                 # Jeśli stan wypada poza wybrany sektor
-#                 new_index == 0 && continue
-
-#                 # Wpis do macierzy operatora
-#                 Q[new_index, i] += wsp * amp_f * amp_b
-
-#             end
-#         end
-#     end
-#     return Q
-# end
-#
-# =============================================================================
 
 # =============================================================================
-# ODCZYT Q_292 Z BAZY OPERATOROW
-# Numer Q_292 oznacza 292. WIERSZ pliku. Pierwsza kolumna jest ignorowana.
-# Funkcja jest niezalezna od zakomentowanej wyzej implementacji.
-# =============================================================================
-# function wczytaj_opis_operatora_z_bazy(plik, numer::Int)
-#     isfile(plik) || error("Nie znaleziono pliku bazy dla Q_$numer: $plik")
-#     for (nr, linia) in enumerate(eachline(plik))
-#         nr == numer || continue
-#         pola = split(strip(linia))
-#         length(pola) == 3 || error("Niepoprawny format wiersza $numer w pliku bazy")
-#         sektor = String(pola[2])
-#         sektor in ("RR", "RI", "IR", "II") || error("Nieznany sektor Q_$numer: $sektor")
-#         nogi = split(pola[3], "|")
-#         length(nogi) == 2 || error("Niepoprawny zapis nog Q_$numer: $(pola[3])")
-#         gora = [parse(Int, string(c)) for c in nogi[1]]
-#         dol = [parse(Int, string(c)) for c in nogi[2]]
-#         length(gora) == length(dol) || error("Rozne dlugosci nog dla Q_$numer")
-#         all(x -> 0 <= x <= 3, gora) && all(x -> 0 <= x <= 3, dol) ||
-#             error("Niedozwolona cyfra w Q_$numer")
-#         println("Q_$numer = $sektor $(pola[3]) (wiersz $nr pliku bazy)")
-#         return sektor, gora, dol
-#     end
-#     error("Brak wiersza $numer w pliku bazy: $plik")
-# end
 
 # NORMALIZACJA OPERATORA
 function normalizuj_operator(Q)

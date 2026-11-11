@@ -27,9 +27,9 @@ FOLDER_DANE = Path(
 TRYB_SKANU = "g"
 
 # Niezalezne wlaczanie metod korelacji.
-POKAZ_RANDOM_STATE = True
-POKAZ_TRACE = False
-POKAZ_FERMION_LOKALNY = False
+POKAZ_RANDOM_STATE = False
+POKAZ_TRACE = True
+POKAZ_FERMION_LOKALNY = True
 
 # Pozycja elektronu w trzeciej metodzie (zgodna z x w nazwie pliku).
 POZYCJA_FERMIONU = 5
@@ -70,7 +70,7 @@ WYBRANE_KORELACJE = [
     # "Q_8",
     # "Q_26",
     # "Q_60",
-    "C_slow_289_50_1_304_300_3",
+    #"C_slow_289_50_1_304_300_3",
     # "Q_289",
     # "Q_50",
     # "Q_1",
