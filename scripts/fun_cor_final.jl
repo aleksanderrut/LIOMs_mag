@@ -445,7 +445,7 @@ function main()
     # ARGUMENT g
     if SKAN_G
         # g_values = range(0.0, 10.0, length=51)
-        g_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
+        g_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 4.0, 6.0, 8.0, 10.0]
     else
         g_values = [g]
     end
@@ -542,7 +542,7 @@ function main()
         baza_data[i, 5] = baza_bit[i][2]
     end
 
-    #Losowe stany d
+    #Losowe stany
     Psi_0 = losuj_q1_gauss(length(baza_int))
     pozycja_fermionu = 5
     Psi_0_fermion_lokalny = losuj_stan_fermion_lokalny(M, pozycja_fermionu, baza_int, indeks_odwrotny)
