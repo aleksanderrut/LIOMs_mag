@@ -9,7 +9,8 @@ import numpy as np
 
 # Dowolny plik z tej samej serii, numer eig w tej ścieżce zostanie automatycznie podmieniony.
 filename = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\seminarium\data\heatmap\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    #r"C:\Users\aleks\Desktop\praca magisterska\seminarium\data\heatmap\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_12_17.11.2026\M=4\grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
 )
 
 # "single" -> jeden wybrany eig
@@ -29,7 +30,7 @@ x_axis_mode = "g"
 # =============================================================================
 # LINIE STAŁE
 
-show_constant_lines = True
+show_constant_lines = False
 
 show_omega_line_1 = True
 omega_line_1 = 0.6
@@ -61,8 +62,8 @@ save_plot = False
 dpi = 300
 cmap = "viridis"
 
-vmin = None
-vmax = None
+vmin = 0.0
+vmax = 3.0
 
 output_folder = Path(
     r"C:\Users\aleks\Desktop\praca magisterska\spotkanie_05.10.2026"

@@ -21,14 +21,16 @@ FOLDER_DANE = Path(
     #r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\fun_cor_data\doróbki"
     #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\jeden_elektron"
     #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\wszystkie_magnetyzacje"
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_12_17.11.2026\half filling"
+    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_12_17.11.2026\half filling"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_12_17.11.2026\one electron"
+    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_12_17.11.2026\all mag"
 )
 
 # TRYB WYKRESU: "omega0", "g" albo "omega0_g".
 TRYB_SKANU = "g"
 
 # Niezalezne wlaczanie metod korelacji.
-POKAZ_RANDOM_STATE = False
+POKAZ_RANDOM_STATE = True
 POKAZ_TRACE = True
 POKAZ_FERMION_LOKALNY = False
 
@@ -661,7 +663,7 @@ def rysuj_wykres(pliki, wybrane_korelacje, wartosci_wybrane=None):
     style_metod = {
         "random": ("Random state", "--"),
         "trace": ("Trace", "-"),
-        "fermion_lokalny": ("Lokalny elektron", ":"),
+        "fermion_lokalny": ("localized electron", ":"),
     }
 
     # -------------------------------------------------------------------------
