@@ -30,7 +30,7 @@ FOLDER_DANE = Path(
 TRYB_SKANU = "g"
 
 # Niezalezne wlaczanie metod korelacji.
-POKAZ_RANDOM_STATE = True
+POKAZ_RANDOM_STATE = False
 POKAZ_TRACE = True
 POKAZ_FERMION_LOKALNY = False
 
@@ -64,7 +64,7 @@ POMIN_BRAKUJACE_G = True
 # WYBOR FUNKCJI KORELACJI
 # Tutaj wpisujesz RZECZYWISTE operatory, ktore chcesz narysowac.
 WYBRANE_KORELACJE = [
-    "C_slow_289_50_1_304_300_3",
+    #"C_slow_289_50_1_304_300_3",
     #"C_slow_289_50_1_304_300",
     #"C_slow_289_50_1_304",
     #"C_slow_289_50_1",
