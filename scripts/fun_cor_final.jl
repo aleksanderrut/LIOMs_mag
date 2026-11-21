@@ -286,20 +286,20 @@ function losuj_q1_gauss(n::Int)
 end
 
 # # LOSOWY STAN POCZATKOWY - FERMION LOKALNY + BOZON Gauss
-# function losuj_stan_fermion_lokalny(M::Int, pozycja::Int, baza_int, indeks_odwrotny)
-#     # Jeden elektron na wybranej pozycji
-#     state_ferm = 1 << (pozycja - 1)
-#     # Losowy znormalizowany stan bozonowy
-#     Psi_bos = losuj_q1_gauss(1 << M)
-#     # Wektor stanu calego ukladu
-#     Psi_0 = zeros(ComplexF64, length(baza_int))
-#     for state_bos in 0:((1 << M) - 1)
-#         indeks = get(indeks_odwrotny,(state_ferm, state_bos),0)
-#         indeks != 0 || error("Brak stanu w bazie")
-#         Psi_0[indeks] = Psi_bos[state_bos + 1]
-#     end
-#     return Psi_0
-# end
+function losuj_stan_fermion_lokalny(M::Int, pozycja::Int, baza_int, indeks_odwrotny)
+    # Jeden elektron na wybranej pozycji
+    state_ferm = 1 << (pozycja - 1)
+    # Losowy znormalizowany stan bozonowy
+    Psi_bos = losuj_q1_gauss(1 << M)
+    # Wektor stanu calego ukladu
+    Psi_0 = zeros(ComplexF64, length(baza_int))
+    for state_bos in 0:((1 << M) - 1)
+        indeks = get(indeks_odwrotny,(state_ferm, state_bos),0)
+        indeks != 0 || error("Brak stanu w bazie")
+        Psi_0[indeks] = Psi_bos[state_bos + 1]
+    end
+    return Psi_0
+end
 
 # Przygotowanie korelacji ED - transformacja operatora wykonywana tylko raz dla kazdego g
 function przygotuj_korelacje_ED(wynik_H, A, Psi_0)
@@ -445,7 +445,7 @@ function main()
     # ARGUMENT g
     if SKAN_G
         # g_values = range(0.0, 10.0, length=51)
-        g_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 4.0, 6.0, 8.0, 10.0]
+        g_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 3.0, 4.0, 5.0, 10.0]
     else
         g_values = [g]
     end
@@ -544,8 +544,8 @@ function main()
 
     #Losowe stany
     Psi_0 = losuj_q1_gauss(length(baza_int))
-#     pozycja_fermionu = 5
-#     Psi_0_fermion_lokalny = losuj_stan_fermion_lokalny(M, pozycja_fermionu, baza_int, indeks_odwrotny)
+    # pozycja_fermionu = 5
+    # Psi_0_fermion_lokalny = losuj_stan_fermion_lokalny(M, pozycja_fermionu, baza_int, indeks_odwrotny)
     # println("Pozycja elektronu: ", pozycja_fermionu)
     # println("Norma stanu lokalnego: ", norm(Psi_0_fermion_lokalny))
     # println("Wymiar przestrzeni Hilberta: ", length(baza_int))
@@ -620,11 +620,15 @@ function main()
     # Macierz na wyniki funkcji korelacji
     wyniki_korelacji = Matrix{Float64}(undef, liczba_punktow * t_POINTS, length(kolumny_korelacji))
     wyniki_korelacji_trace = Matrix{Float64}(undef, liczba_punktow * t_POINTS, length(kolumny_korelacji))
-#     wyniki_korelacji_lokalny = Matrix{Float64}(undef, liczba_punktow * t_POINTS, length(kolumny_korelacji))
+    # wyniki_korelacji_lokalny = Matrix{Float64}(undef, liczba_punktow * t_POINTS, length(kolumny_korelacji))
 
-    for (k_omega, omega0) in enumerate(omega0_values)
+    Threads.@threads for k_omega in eachindex(omega0_values)
+        omega0 = omega0_values[k_omega]
+    # for (k_omega, omega0) in enumerate(omega0_values)
         println("Obliczenia dla omega_0 = ", omega0)
-        for (k_g, g) in enumerate(g_values)
+        Threads.@threads for k_g in eachindex(g_values)
+            g = g_values[k_g]
+        # for (k_g, g) in enumerate(g_values)
             println("Obliczenia dla g = ", g)
 
             wiersz_parametrow = (k_omega - 1) * length(g_values) + k_g
@@ -640,9 +644,9 @@ function main()
 
             # generowanie Hamiltonianu (operatory Q wygenerowano juz z bazy)
             H = gen_ham_xxz(M, J, Delta, PBC, baza_int, indeks_odwrotny, omega0, g)
-            #save_data(H, "Ham", PBC; L_x=M, N_up, J, Delta, omega0, g)
+            # save_data(H, "Ham", PBC; L_x=M, N_up, J, Delta, omega0, g)
 
-            #policzenie komutatorów i zapisanie wyników
+            # policzenie komutatorów i zapisanie wyników
             wyniki_komutatorow = Float64[]
             for numer in numery_operatorow
                 _, wynik = oblicz_komutator(H, operatory_z_bazy[numer])
@@ -683,7 +687,9 @@ function main()
 #             C_0_lokalny = [funkcja_korelacji_ED(dane, fazy_0) for dane in dane_korelacji_lokalny]
 
             # PETLA PO CZASIE
-            for (j, t) in enumerate(t_values)
+            Threads.@threads for j in eachindex(t_values)
+                t = t_values[j]
+            # for (j, t) in enumerate(t_values)
                 fazy = exp.(-im .* wynik_H.values .* t)
 
                 wiersz = (wiersz_parametrow - 1) * t_POINTS + j
@@ -691,19 +697,19 @@ function main()
                 wyniki_korelacji[wiersz, liczba_kolumn_parametrow + 1] = t
                 wyniki_korelacji_trace[wiersz, 1:liczba_kolumn_parametrow] = parametry_wiersza
                 wyniki_korelacji_trace[wiersz, liczba_kolumn_parametrow + 1] = t
-#                 wyniki_korelacji_lokalny[wiersz, 1:liczba_kolumn_parametrow] = parametry_wiersza
-#                 wyniki_korelacji_lokalny[wiersz, liczba_kolumn_parametrow + 1] = t
+                #wyniki_korelacji_lokalny[wiersz, 1:liczba_kolumn_parametrow] = parametry_wiersza
+                #wyniki_korelacji_lokalny[wiersz, liczba_kolumn_parametrow + 1] = t
 
                 for a in 1:length(operatory_korelacji)
 
-                    C_t = funkcja_korelacji_ED(dane_korelacji[a], fazy) / C_0[a]
-                    wyniki_korelacji[wiersz, a + liczba_kolumn_parametrow + 1] = C_t
+                    # C_t = funkcja_korelacji_ED(dane_korelacji[a], fazy) / C_0[a]
+                    # wyniki_korelacji[wiersz, a + liczba_kolumn_parametrow + 1] = C_t
 
                     C_trace_t = funkcja_korelacji_trace_ED(dane_korelacji[a], fazy) / C_0_trace[a]
                     wyniki_korelacji_trace[wiersz, a + liczba_kolumn_parametrow + 1] = C_trace_t
 
-#                     C_lokalny_t = funkcja_korelacji_ED(dane_korelacji_lokalny[a], fazy) / C_0_lokalny[a]
-#                     wyniki_korelacji_lokalny[wiersz, a + liczba_kolumn_parametrow + 1] = C_lokalny_t
+                    # C_lokalny_t = funkcja_korelacji_ED(dane_korelacji_lokalny[a], fazy) / C_0_lokalny[a]
+                    # wyniki_korelacji_lokalny[wiersz, a + liczba_kolumn_parametrow + 1] = C_lokalny_t
                 end
             end
         end
@@ -711,15 +717,15 @@ function main()
     # Zapis calej siatki po zakonczeniu petli: nazwa pliku odpowiada faktycznym kolumnom.
     save_wyniki_vs_g(wyniki, kolumny, PBC;
         nazwa="Tr_komutatorow_vs_$(nazwa_skanu)", parametry_pliku...)
-    save_korelacje_ED(wyniki_korelacji, kolumny_korelacji, PBC;
-        nazwa="Korelacje_ED_vs_$(nazwa_skanu)_t", parametry_pliku...,
-        tmin=t_MIN, tmax=t_MAX, nt=t_POINTS)
+    # save_korelacje_ED(wyniki_korelacji, kolumny_korelacji, PBC;
+    #     nazwa="Korelacje_ED_vs_$(nazwa_skanu)_t", parametry_pliku...,
+    #     tmin=t_MIN, tmax=t_MAX, nt=t_POINTS)
     save_korelacje_ED(wyniki_korelacji_trace, kolumny_korelacji, PBC;
         nazwa="Korelacje_trace_ED_vs_$(nazwa_skanu)_t", parametry_pliku...,
         tmin=t_MIN, tmax=t_MAX, nt=t_POINTS)
-#     save_korelacje_ED(wyniki_korelacji_lokalny, kolumny_korelacji, PBC;
-#         nazwa="Korelacje_fermion_lokalny_ED_vs_$(nazwa_skanu)_t", parametry_pliku...,
-#         x=pozycja_fermionu, tmin=t_MIN, tmax=t_MAX, nt=t_POINTS)
+    # save_korelacje_ED(wyniki_korelacji_lokalny, kolumny_korelacji, PBC;
+        # nazwa="Korelacje_fermion_lokalny_ED_vs_$(nazwa_skanu)_t", parametry_pliku...,
+        # x=pozycja_fermionu, tmin=t_MIN, tmax=t_MAX, nt=t_POINTS)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

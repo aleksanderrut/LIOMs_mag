@@ -10,19 +10,20 @@ import numpy as np
 filename_template = Path(
     # r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_8_17.10.2026\siatka_omega_g\grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
     # r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
-    r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    #r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.2026\squared\siatka_omega_g\grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
 )
 
-eig_min, eig_max = 1, 20
+eig_min, eig_max = 1, 60
 
 # "fixed_omega" -> stałe omega_0, oś X = g
 # "fixed_g"     -> stałe g, oś X = omega_0
-plot_mode = "fixed_g"
+plot_mode = "fixed_omega"
 
 # "x", "1/x", "x^2", "gamma" - (gamma = x/(x+1)).
 x_transform = "x"
 
-omega_fixed = 0.75 #0.4827586206896552 
+omega_fixed = 0.65 #0.4827586206896552 
 g_fixed = 0.75 
 value_tolerance = 1e-10
 
@@ -324,7 +325,7 @@ print(f"\nPlik wynikowy:\n{output_filename}")
 ax.set_xlabel(x_label)
 #ax.set_xticks(np.arange(0, 1.01, 0.1))
 if x_transform == "x":
-    ax.set_xlim(0, 10.0)
+    ax.set_xlim(0, 5.0)
 ax.set_ylabel(r"$\lambda$")
 ax.set_title(build_plot_title(filename_template, eig_min, eig_max, fixed_value_title))
 ax.legend()

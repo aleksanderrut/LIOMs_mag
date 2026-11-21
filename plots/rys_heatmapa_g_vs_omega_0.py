@@ -10,7 +10,7 @@ import numpy as np
 # Dowolny plik z tej samej serii, numer eig w tej ścieżce zostanie automatycznie podmieniony.
 filename = Path(
     #r"C:\Users\aleks\Desktop\praca magisterska\seminarium\data\heatmap\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_12_17.11.2026\M=4\grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_12_17.11.2026\M=4\grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
 )
 
 # "single" -> jeden wybrany eig
@@ -33,7 +33,7 @@ x_axis_mode = "g"
 show_constant_lines = False
 
 show_omega_line_1 = True
-omega_line_1 = 0.6
+omega_line_1 = 0.65
 
 # show_omega_line_2 = True
 # omega_line_2 = 1.52
