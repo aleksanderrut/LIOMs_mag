@@ -9,18 +9,20 @@ import numpy as np
 
 # Plik wzorcowy: numer eig w nazwie jest automatycznie podmieniany.
 filename = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\siatka_omega_g_liomsy\lioms_grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig19.txt"
+    #r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\siatka_omega_g_liomsy\lioms_grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig19.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\scan_g\siatka_omega_g_liomsy\lioms_grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
 )
 
 basis_filename = Path(
-    r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\bazy\operators_ladder_mag_M_3_J_1.0_Jp_0.0_d_0.001_d2_0.0_w_1.0_g_1.0_T_both_P_both_Sz_cons_fermion_yes_Sz_cons_boson_both_FId_true.txt"
+    #r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\bazy\operators_ladder_mag_M_3_J_1.0_Jp_0.0_d_0.001_d2_0.0_w_1.0_g_1.0_T_both_P_both_Sz_cons_fermion_yes_Sz_cons_boson_both_FId_true.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\operators_ladder_mag_M_3_J_1.0_Jp_0.0_d_0.001_d2_0.0_w_1.0_g_1.0_T_both_P_both_Sz_cons_fermion_yes_Sz_cons_boson_both_FId_true.txt"
 )
 
 # PRZELACZNIK:
 # "single" - wspolczynniki z jednego pliku eig
 # "sum"    - suma wspolczynnikow tego samego operatora z eig_min ... eig_max
-eig_mode = "sum"
-selected_eig = 19
+eig_mode = "single"
+selected_eig = 6
 
 eig_min = 3
 eig_max = 19
@@ -28,7 +30,7 @@ eig_max = 19
 # "fixed_omega": omega_0 ustalone, na osi X jest g
 # "fixed_g":     g ustalone, na osi X jest omega_0
 plot_mode = "fixed_omega"
-omega_fixed = 0.5
+omega_fixed = 0.65
 g_fixed = 0.25
 value_tolerance = 1e-10
 
@@ -43,14 +45,14 @@ value_tolerance = 1e-10
 #wybrane_operatory = [8,26]
 #wybrane_operatory = [49,1,52,289]
 
-wybrane_operatory = [8,26]
+wybrane_operatory = [289,50,1,304,300,3,296,302,1130,227,233]
 
 
 show_plot = True
-save_plot = True
+save_plot = False
 show_operator_descriptions = True
 
-x_min, x_max = 0.0, 10.0
+x_min, x_max = 0.0, 5.0
 y_min, y_max = 0.0, None  # None = automatyczny zakres
 
 plot_title_fontsize = 16
@@ -492,11 +494,8 @@ def main():
 
     title = (
         rf"$M={p['M']};\ J'={p['Jp']};\ "
-        rf"\Delta={p['Delta']};\ \Delta'={p['Delta2']}$"
-        "\n"
-        rf"$T={p['T']};\ P={p['P']};\ F={p['F']};\ "
-        rf"B={p['B']};\ FId={p['FId']};\ {fixed_title}$"
-        f"\n{eig_description}"
+        rf"\Delta={p['Delta']};\ \Delta'={p['Delta2']};\ "
+        rf"{fixed_title}$  {eig_description}"
     )
 
     ax.set_title(
@@ -504,6 +503,7 @@ def main():
         fontsize=plot_title_fontsize,
         pad=15
     )
+    ax.set_xticks(np.arange(x_min, x_max + 0.01, 0.2))
 
     # =========================================================================
     # KRZYWE OPERATOROW
@@ -692,7 +692,6 @@ def main():
         plt.show()
     else:
         plt.close(fig)
-
 
 if __name__ == "__main__":
     main()
