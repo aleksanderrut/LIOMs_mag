@@ -22,8 +22,9 @@ FOLDER_DANE = Path(
     #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\jeden_elektron"
     #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\wszystkie_magnetyzacje"
     #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_12_17.11.2026\half filling"
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_12_17.11.2026\one electron"
+    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_12_17.11.2026\one electron"
     #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_12_17.11.2026\all mag"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\cor"
 )
 
 # TRYB WYKRESU: "omega0", "g" albo "omega0_g".
@@ -67,7 +68,7 @@ WYBRANE_KORELACJE = [
     #"C_slow_289_50_1_304_300_3",
     #"C_slow_289_50_1_304_300",
     #"C_slow_289_50_1_304",
-    #"C_slow_289_50_1",
+    "C_slow_289_50_1",
     #"C_slow_289_50",
     # "Q_289",
     # "Q_50",

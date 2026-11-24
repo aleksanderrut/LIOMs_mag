@@ -9,17 +9,17 @@ import numpy as np
 
 # Dowolny plik z tej samej serii, numer eig w tej ścieżce zostanie automatycznie podmieniony.
 filename = Path(
-    #r"C:\Users\aleks\Desktop\praca magisterska\seminarium\data\heatmap\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
-    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_12_17.11.2026\M=4\grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\seminarium\data\heatmap\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\heatmaps\grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
 )
 
 # "single" -> jeden wybrany eig
 # "sum"    -> suma wartości dla zakresu eig
-mode = "single"
+mode = "sum"
 
-selected_eig = 3
+selected_eig = 5
 eig_min = 3
-eig_max = 20
+eig_max = 19
 
 # Oś X: "g" lub "g2"
 # "g"  -> heatmapa omega_0 vs g
@@ -62,8 +62,8 @@ save_plot = False
 dpi = 300
 cmap = "viridis"
 
-vmin = 0.0
-vmax = 3.0
+vmin = None
+vmax = None
 
 output_folder = Path(
     r"C:\Users\aleks\Desktop\praca magisterska\spotkanie_05.10.2026"
