@@ -11,21 +11,25 @@ filename = Path(
     #r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\siatka_omega_g_liomsy\lioms_grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig19.txt"
 
     #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\scan_g\siatka_omega_g_liomsy\lioms_grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\squared\siatka_omega_g_liomsy\lioms_grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\squared\siatka_omega_g_liomsy\lioms_grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+
+    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\interactions\lioms_grid_M3_Jp0.0_d0.001_d20.3_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\interactions\lioms_grid_M3_Jp0.2_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"   
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\interactions\lioms_grid_M3_Jp0.0_d0.3_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
 )
 
 basis_filename = Path(
     #r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\bazy\operators_ladder_mag_M_3_J_1.0_Jp_0.0_d_0.001_d2_0.0_w_1.0_g_1.0_T_both_P_both_Sz_cons_fermion_yes_Sz_cons_boson_both_FId_true.txt"
 
-    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\operators_ladder_mag_M_3_J_1.0_Jp_0.0_d_0.001_d2_0.0_w_1.0_g_1.0_T_both_P_both_Sz_cons_fermion_yes_Sz_cons_boson_both_FId_true.txt"
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\squared\siatka_omega_g_liomsy\operators_ladder_mag_M_4_J_1.0_Jp_0.0_d_0.001_d2_0.0_w_1.0_g_1.0_T_both_P_both_Sz_cons_fermion_yes_Sz_cons_boson_both_FId_true.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\operators_ladder_mag_M_3_J_1.0_Jp_0.0_d_0.001_d2_0.0_w_1.0_g_1.0_T_both_P_both_Sz_cons_fermion_yes_Sz_cons_boson_both_FId_true.txt"
+    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\squared\siatka_omega_g_liomsy\operators_ladder_mag_M_4_J_1.0_Jp_0.0_d_0.001_d2_0.0_w_1.0_g_1.0_T_both_P_both_Sz_cons_fermion_yes_Sz_cons_boson_both_FId_true.txt"
 )
 
 # PRZELACZNIK:
 # "single" - wspolczynniki z jednego pliku eig
 # "sum"    - suma wspolczynnikow tego samego operatora z eig_min ... eig_max
 eig_mode = "single"
-selected_eig = 6
+selected_eig = 3
 
 eig_min = 3
 eig_max = 19
@@ -49,7 +53,10 @@ value_tolerance = 1e-10
 #wybrane_operatory = [49,1,52,289]
 
 #wybrane_operatory = [289,50,1,304,300,3,296,302,1130,227,233]
-wybrane_operatory = [1153,194,1,1168,1164,3,1166,1160,196,4544]
+#wybrane_operatory = [1153,194,1,1168,1164,3,1166,1160,196,4544]
+
+#wybrane_operatory = [289,50,1,304,300,3,296,302,166,4]
+wybrane_operatory = [289,50,1,304,300,3,116,302,296,52]
 
 
 show_plot = True

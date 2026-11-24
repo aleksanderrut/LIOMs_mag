@@ -1,3 +1,4 @@
+
 from pathlib import Path
 import re
 import matplotlib.pyplot as plt
@@ -10,11 +11,15 @@ import numpy as np
 filename_template = Path(
     # r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_8_17.10.2026\siatka_omega_g\grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
     # r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
-    #r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.2026\squared\siatka_omega_g\grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    # r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\siatka_omega_g\grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    # r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.2026\squared\siatka_omega_g\grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    
+    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\interactions\grid_M3_Jp0.0_d0.001_d20.3_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\interactions\grid_M3_Jp0.0_d0.3_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\interactions\grid_M3_Jp0.2_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
 )
 
-eig_min, eig_max = 1, 60
+eig_min, eig_max = 1, 20
 
 # "fixed_omega" -> stałe omega_0, oś X = g
 # "fixed_g"     -> stałe g, oś X = omega_0
@@ -61,6 +66,7 @@ if filename_pattern.search(filename_template.name) is None:
 def extract_plot_parameters(filename: Path) -> dict[str, str]:
     patterns = {
         "M": r"_M([^_]+)",
+        "J": r"_J_([^_]+)",
         "Jp": r"_Jp([^_]+)",
         "delta": r"_d([^_]+)",
         "delta2": r"_d2([^_]+)",
@@ -90,22 +96,24 @@ def build_plot_title(filename: Path, eig_min: int, eig_max: int, fixed_value: fl
 
     if "M" in p:
         parts.append(f"M = {p['M']}")
+    parts.append(rf"$J = {p.get('J', '1.0')}$")
     if "Jp" in p:
         parts.append(rf"$J' = {p['Jp']}$")
     if "delta" in p:
         parts.append(rf"$\Delta = {p['delta']}$")
     if "delta2" in p:
-        parts.append(rf"$\Delta_2 = {p['delta2']}$")
-    if "T" in p:
-        parts.append(f"T = {p['T']}")
-    if "P" in p:
-        parts.append(f"P = {p['P']}")
-    if "F" in p:
-        parts.append(f"F = {p['F']}")
-    if "B" in p:
-        parts.append(f"B = {p['B']}")
-    if "FId" in p:
-        parts.append(f"FId = {p['FId']}")
+        parts.append(rf"$\Delta' = {p['delta2']}$")
+
+    # if "T" in p:
+    #     parts.append(f"T = {p['T']}")
+    # if "P" in p:
+    #     parts.append(f"P = {p['P']}")
+    # if "F" in p:
+    #     parts.append(f"F = {p['F']}")
+    # if "B" in p:
+    #     parts.append(f"B = {p['B']}")
+    # if "FId" in p:
+    #     parts.append(f"FId = {p['FId']}")
 
     parts.append(f"eig = {eig_min}" if eig_min == eig_max else f"eig = {eig_min}-{eig_max}")
 
@@ -328,9 +336,10 @@ if x_transform == "x":
     ax.set_xlim(0, 5.0)
 ax.set_ylabel(r"$\lambda$")
 ax.set_title(build_plot_title(filename_template, eig_min, eig_max, fixed_value_title))
-ax.legend()
-ax.grid(alpha=0.3)
+ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5))
+fig.subplots_adjust(right=0.78)
 
+ax.grid(alpha=0.3)
 # =============================================================================
 # ZAPIS I WYŚWIETLENIE
 
