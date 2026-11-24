@@ -9,9 +9,18 @@ Thumbs.db
 .julia/
 
 # Calculation results
-/scripts/liom_mag_dane/
-/scripts/fun_cor_data/
-/cripts/Lanczos_XXZ_wyniki/
+# Ignore all directories ending with "data"
+**/*data/
+
+# LIOM calculation results
+/scripts/liom_mag_dane/*
+
+# Keep operator bases
+!/scripts/liom_mag_dane/bazy/
+!/scripts/liom_mag_dane/bazy/**
+
+# Other calculation results
+/scripts/Lanczos_XXZ_wyniki/
 
 # Generated plots
 /plots/lioms_wykresy/
