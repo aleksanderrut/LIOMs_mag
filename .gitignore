@@ -8,12 +8,13 @@ Thumbs.db
 # Local Julia folders
 .julia/
 
-# Calculation results
-# Ignore all directories ending with "data"
-**/*data/
+# Ignore contents of all directories ending with data
+**/*data/**
+!**/*data/.gitkeep
 
 # LIOM calculation results
 /scripts/liom_mag_dane/*
+!/scripts/liom_mag_dane/.gitkeep
 
 # Keep operator bases
 !/scripts/liom_mag_dane/bazy/
