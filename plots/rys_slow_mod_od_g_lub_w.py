@@ -10,12 +10,12 @@ import numpy as np
 filename = Path(
     #r"C:\Users\aleks\Desktop\praca magisterska\LIOMs_mag\scripts\liom_mag_dane\siatka_omega_g_liomsy\lioms_grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig19.txt"
 
-    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\scan_g\siatka_omega_g_liomsy\lioms_grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_11_07.11.2026\scan_g\siatka_omega_g_liomsy\lioms_grid_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
     #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\squared\siatka_omega_g_liomsy\lioms_grid_M4_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
 
     #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\interactions\lioms_grid_M3_Jp0.0_d0.001_d20.3_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
     #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\interactions\lioms_grid_M3_Jp0.2_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"   
-    r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\interactions\lioms_grid_M3_Jp0.0_d0.3_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    #r"C:\Users\aleks\Desktop\praca magisterska\dane_serwer\set_13_21.11..2026\interactions\lioms_grid_M3_Jp0.0_d0.3_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
 )
 
 basis_filename = Path(
@@ -52,11 +52,11 @@ value_tolerance = 1e-10
 #wybrane_operatory = [8,26]
 #wybrane_operatory = [49,1,52,289]
 
-#wybrane_operatory = [289,50,1,304,300,3,296,302,1130,227,233]
+wybrane_operatory = [289,50,1,304,300,3,296,302,1130,227,233]
 #wybrane_operatory = [1153,194,1,1168,1164,3,1166,1160,196,4544]
 
 #wybrane_operatory = [289,50,1,304,300,3,296,302,166,4]
-wybrane_operatory = [289,50,1,304,300,3,116,302,296,52]
+#wybrane_operatory = [289,50,1,304,300,3,116,302,296,52]
 
 
 show_plot = True
@@ -700,7 +700,34 @@ def main():
         )
 
     if show_plot:
+        from io import BytesIO
+
+        # Renderowanie kompletnej figury razem z ramka
+        buffer = BytesIO()
+
+        fig.savefig(
+            buffer,
+            format="png",
+            dpi=dpi,
+            bbox_inches="tight",
+            pad_inches=0.25
+        )
+
+        buffer.seek(0)
+        obraz = plt.imread(buffer)
+        buffer.close()
+
+        plt.close(fig)
+
+        # Wyswietlenie calego obrazu
+        fig_preview = plt.figure(figsize=(16, 9))
+        ax_preview = fig_preview.add_axes([0, 0, 1, 1])
+
+        ax_preview.imshow(obraz)
+        ax_preview.axis("off")
+
         plt.show()
+
     else:
         plt.close(fig)
 
