@@ -264,6 +264,76 @@ function generuj_operator_z_bazy(numer, lista_operatorow, L, baza_int, indeks_od
 end
 # =============================================================================
 
+# =============================================================================
+# AUTOMATYCZNE GENEROWANIE WOLNEGO MODU Z PLIKU
+function generuj_wolny_mod_full(filename, omega0, g, dokladnosc, lista_operatorow, M, baza_int, indeks_odwrotny, PBC)
+    dokladnosc >= 0 || error("Prog musi byc nieujemny")
+
+    D = length(baza_int)
+    Q_slow_full = zeros(ComplexF64, D, D)
+
+    wspolczynniki = Dict{Int, Float64}()
+    licznik = 0
+    znaleziono = false
+
+    for linia in eachline(filename)
+
+        isempty(strip(linia)) && continue
+
+        pola = split(strip(linia), '\t'; limit=3)
+
+        omega0_plik = parse(Float64, pola[1])
+        g_plik = parse(Float64, pola[2])
+
+        # Szukanie odpowiedniego punktu
+        if isapprox(omega0_plik, omega0; atol=1e-10, rtol=0.0) &&
+           isapprox(g_plik, g; atol=1e-10, rtol=0.0)
+
+            znaleziono = true
+
+            # Rozdzielenie zapisanych operatorow
+            for element in split(pola[3], ';')
+
+                numer_txt, c_txt = split(element, ':')
+
+                numer = parse(Int, numer_txt)
+                c = parse(Float64, c_txt)
+
+                wspolczynniki[numer] = c
+
+                # Wybor wspolczynnikow powyzej progu
+                if abs(c) > dokladnosc
+
+                    Q = generuj_operator_z_bazy(
+                        numer, lista_operatorow, M,
+                        baza_int, indeks_odwrotny, PBC
+                    )
+
+                    # Dodawanie bez dodatkowej normalizacji
+                    Q_slow_full .+= c .* Q
+
+                    licznik += 1
+                end
+            end
+
+            break
+        end
+    end
+
+    znaleziono || error("Nie znaleziono punktu omega0=$omega0, g=$g")
+    licznik > 0 || error("Brak wspolczynnikow powyzej progu")
+
+    println("Wygenerowano pelny wolny mod")
+    println("omega0 = ", omega0)
+    println("g = ", g)
+    println("Prog = ", dokladnosc)
+    println("Liczba wykorzystanych operatorow = ", licznik)
+    flush(stdout)
+
+    return Q_slow_full, wspolczynniki
+end
+# =============================================================================
+
 # NORMALIZACJA OPERATORA WZGLEDEM NORMY HILBERTA-SCHMIDTA
 function normalizuj_operator_HS(Q)
     D = size(Q, 1)
@@ -440,12 +510,15 @@ function main()
         omega0_values = range(0.0, 2.0, length=11)
     else
         omega0_values = [0.65]
+        #omega0_values = [0.5]
+        #omega0_values = [omega0]
     end
 
     # ARGUMENT g
     if SKAN_G
         # g_values = range(0.0, 10.0, length=51)
         g_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 3.0, 4.0, 5.0, 10.0]
+        #g_values = [0.0, 0.25, 0.5, 0.75, 1.0]
     else
         g_values = [g]
     end
@@ -454,15 +527,15 @@ function main()
     # =========================================================================================
     # GENEROWANIE BAZY - Sektor magnetyzacji czy czy bez podziału na sektory 
     # cała magentyzacja
-    # mag = :all
-    # N_up = "all"
-    # println("Generowanie pelnej bazy...")
-    # baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
-
-    # sektor magnetyzacji
-    mag = N_up - M / 2
-    println("Generowanie bazy...")
+    mag = :all
+    N_up = "all"
+    println("Generowanie pelnej bazy...")
     baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
+
+    # # sektor magnetyzacji
+    # mag = N_up - M / 2
+    # println("Generowanie bazy...")
+    # baza_int, baza_bit, indeks_odwrotny = gen_baza_xxz(M; mag=mag)
 
     # WCZYTANIE ZAPISANEJ BAZY OPERATOROW
     plik_bazy_operatorow = joinpath(@__DIR__, "liom_mag_dane", "bazy",
@@ -474,20 +547,48 @@ function main()
 
     operatory_z_bazy = Dict{Int, Matrix{ComplexF64}}()
     for numer in numery_operatorow
+        #println("Generowanie operatora ", numer)
         Q = generuj_operator_z_bazy(numer, lista_operatorow, M, baza_int, indeks_odwrotny, PBC)
-        operatory_z_bazy[numer] = normalizuj_operator_HS(Q)
+        #operatory_z_bazy[numer] = normalizuj_operator_HS(Q)
+        operatory_z_bazy[numer] = Q
     end
 
     #save_data(operatory_z_bazy[1], "Q_1", PBC; L_x=M, N_up=N_up)
     #save_data(operatory_z_bazy[3], "Q_3", PBC; L_x=M, N_up=N_up)
 
     # WOLNY MOD dla M=3 ten schodzący do zera
-    c_289 = -5.1794706276320912e-01
-    c_50  = +4.7927210307102769e-01
-    c_1   = -4.7651488840914752e-01
-    c_304 = -3.6816385756565068e-01
-    c_300 = -3.6816385756565068e-01
-    c_3   = +4.2433580883231209e-02
+    # c_289 = -5.1794706276320912e-01
+    # c_50  = +4.7927210307102769e-01
+    # c_1   = -4.7651488840914752e-01
+    # c_304 = -3.6816385756565068e-01
+    # c_300 = -3.6816385756565068e-01
+    # c_3   = +4.2433580883231209e-02
+
+    # Po poprawkach z noramalizacja 
+    c_289 = -1.2753285248208693e-01
+    c_50  = +1.7020376939251633e-01
+    c_1   = -8.3172060099024156e-02
+    c_304 = -2.6041907678390436e-01
+    c_300 = -2.5824878923110756e-01
+    c_3   = +1.4866449471539792e-02
+
+    # MINIMALNA WARTOSC BEZWZGLEDNA WSPOLCZYNNIKA
+    DOKLADNOSC = 1e-3
+
+    # PLIK ZE WSPOLCZYNNIKAMI
+    plik_wspolczynnikow = joinpath(
+        @__DIR__,
+        "liom_mag_dane",
+        "siatka_omega_g_liomsy",
+        "lioms_grid_norma_M3_Jp0.0_d0.001_d20.0_Tboth_Pboth_Fyes_Bboth_FIdyes_eig3.txt"
+    )
+
+    # GENEROWANIE PELNEGO WOLNEGO MODU
+    Q_slow_full, wspolczynniki = generuj_wolny_mod_full(
+        plik_wspolczynnikow, omega0, g, DOKLADNOSC,
+        lista_operatorow, M, baza_int,
+        indeks_odwrotny, PBC
+    )
 
     Q_slow_289_50_1_304_300_3 = (
     c_289 * operatory_z_bazy[289] +
@@ -530,7 +631,8 @@ function main()
     Q_slow_289_50_1_304_300,
     Q_slow_289_50_1_304,
     Q_slow_289_50_1,
-    Q_slow_289_50
+    Q_slow_289_50,    
+    Q_slow_full
     ]
 
     baza_data = Matrix{Any}(undef, length(baza_int), 5)
@@ -601,20 +703,22 @@ function main()
     # Pierwsze kolumny: parametry skanowania. Pozostale: Tr([H,Q]†[H,Q])/D.
     kolumny = vcat(kolumny_parametrow,
         ["Q_$numer" for numer in numery_operatorow],
-        ["Q_slow_289_50_1_304_300_3", "Q_slow_289_50_1_304_300", "Q_slow_289_50_1_304", "Q_slow_289_50_1", "Q_slow_289_50"]
+        ["Q_slow_289_50_1_304_300_3", "Q_slow_289_50_1_304_300", "Q_slow_289_50_1_304", "Q_slow_289_50_1", "Q_slow_289_50", "C_slow_full"]
     )
     wyniki = Matrix{Float64}(undef, liczba_punktow, length(kolumny))
 
-    # Pierwsze kolumny: parametry, potem czas t. Pozostale: C_Q(t)
+    # Pierwsze kolumny: parametry, potem czas t. Pozosta wynikile: C_Q(t)
     kolumny_korelacji = vcat(kolumny_parametrow, ["t"],
         ["Q_$numer" for numer in numery_operatorow],
-        ["C_slow_289_50_1_304_300_3", "C_slow_289_50_1_304_300", "C_slow_289_50_1_304", "C_slow_289_50_1", "C_slow_289_50"]
+        ["C_slow_289_50_1_304_300_3", "C_slow_289_50_1_304_300", "C_slow_289_50_1_304", "C_slow_289_50_1", "C_slow_289_50", "C_slow_full"]
     )
 
     # PARAMETRY KORELACJI CZASOWYCH
     t_MIN = 0.0
     t_MAX = 100.0
+    #t_MAX=0.0
     t_POINTS = 501
+    #t_POINTS = 1
     t_values = range(t_MIN, t_MAX, length=t_POINTS)
 
     # Macierz na wyniki funkcji korelacji
@@ -622,13 +726,13 @@ function main()
     wyniki_korelacji_trace = Matrix{Float64}(undef, liczba_punktow * t_POINTS, length(kolumny_korelacji))
     # wyniki_korelacji_lokalny = Matrix{Float64}(undef, liczba_punktow * t_POINTS, length(kolumny_korelacji))
 
-    Threads.@threads for k_omega in eachindex(omega0_values)
-        omega0 = omega0_values[k_omega]
-    # for (k_omega, omega0) in enumerate(omega0_values)
+    #Threads.@threads for k_omega in eachindex(omega0_values)
+        #omega0 = omega0_values[k_omega]
+    for (k_omega, omega0) in enumerate(omega0_values)
         println("Obliczenia dla omega_0 = ", omega0)
-        Threads.@threads for k_g in eachindex(g_values)
-            g = g_values[k_g]
-        # for (k_g, g) in enumerate(g_values)
+        #Threads.@threads for k_g in eachindex(g_values)
+            #g = g_values[k_g]
+        for (k_g, g) in enumerate(g_values)
             println("Obliczenia dla g = ", g)
 
             wiersz_parametrow = (k_omega - 1) * length(g_values) + k_g
@@ -684,12 +788,12 @@ function main()
             fazy_0 = ones(ComplexF64, length(wynik_H.values))
             C_0 = [funkcja_korelacji_ED(dane, fazy_0) for dane in dane_korelacji]
             C_0_trace = [funkcja_korelacji_trace_ED(dane, fazy_0) for dane in dane_korelacji]
-#             C_0_lokalny = [funkcja_korelacji_ED(dane, fazy_0) for dane in dane_korelacji_lokalny]
+            # C_0_lokalny = [funkcja_korelacji_ED(dane, fazy_0) for dane in dane_korelacji_lokalny]
 
             # PETLA PO CZASIE
-            Threads.@threads for j in eachindex(t_values)
-                t = t_values[j]
-            # for (j, t) in enumerate(t_values)
+            #Threads.@threads for j in eachindex(t_values)
+                #t = t_values[j]
+            for (j, t) in enumerate(t_values)
                 fazy = exp.(-im .* wynik_H.values .* t)
 
                 wiersz = (wiersz_parametrow - 1) * t_POINTS + j
@@ -715,7 +819,7 @@ function main()
         end
     end 
     # Zapis calej siatki po zakonczeniu petli: nazwa pliku odpowiada faktycznym kolumnom.
-    save_wyniki_vs_g(wyniki, kolumny, PBC;
+    save_wyniki_vs_g(wyniki, kolumny, PBC; 
         nazwa="Tr_komutatorow_vs_$(nazwa_skanu)", parametry_pliku...)
     # save_korelacje_ED(wyniki_korelacji, kolumny_korelacji, PBC;
     #     nazwa="Korelacje_ED_vs_$(nazwa_skanu)_t", parametry_pliku...,

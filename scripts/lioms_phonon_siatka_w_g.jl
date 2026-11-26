@@ -278,7 +278,7 @@ function prepare_operator_basis(L::Int, max_supp::Int, time_reversal::Symbol, pa
   ops_list_rows = ops_list_rows[good]
   norms = norms[good]
   ops ./= norms
-  return ops, ops_list, ops_list_rows
+  return ops, ops_list, ops_list_rows, norms
 end
 
 """
@@ -310,24 +310,30 @@ end
 Save one selected eigenvector for one omega/g point.
 Output format: omega_0    g    basis_index:squared_coefficient;basis_index:squared_coefficient;...
 """
-function save_grid_liom_row(io, omega_0::Real, g::Real, eigenvector::AbstractVector; coeff_sq_tol::Float64 = 1e-6)
-  squared_coeffs = abs2.(eigenvector)
-  sorted_indices = sortperm(squared_coeffs, rev = true) # Indeksy elementów bazy posortowane według malejącego współczynnika
+function save_grid_liom_row(io, omega_0::Real, g::Real, eigenvector::AbstractVector; coeff_sq_tol::Float64 = 1e-6, norms = nothing)
+    squared_coeffs = abs2.(eigenvector)
+    sorted_indices = sortperm(squared_coeffs, rev = true)
+    @printf(io, "%.16e\t%.16e\t", omega_0, g)
+    first_saved = true
 
-  @printf(io, "%.16e\t%.16e\t", omega_0, g)
-  first_saved = true
-  for i in sorted_indices
-    squared_coeff = squared_coeffs[i]
-    if squared_coeff > coeff_sq_tol
-      if !first_saved
-        print(io, ";")
-      end
-      @printf(io, "%d:%.16e", i,squared_coeff)
-      #@printf(io, "%d:%+.16e", i, eigenvector[i])
-      first_saved = false
+    for i in sorted_indices
+        squared_coeff = squared_coeffs[i]
+        if squared_coeff > coeff_sq_tol
+            if !first_saved
+                print(io, ";")
+            end
+            if norms === nothing
+                # Dotychczasowy zapis kwadratów
+                @printf(io, "%d:%.16e", i, squared_coeff)
+                #@printf(io, "%d:%+.16e", i, eigenvector[i])
+            else
+                # Współczynniki podzielone przez normy
+                @printf(io, "%d:%+.16e", i, eigenvector[i] / norms[i])
+            end
+            first_saved = false
+        end
     end
-  end
-  println(io)
+    println(io)
 end
 
 """
@@ -377,7 +383,7 @@ function compute_lioms(H::ps.OperatorTS, L::Int, max_supp::Int, time_reversal::S
   finish!(p)
 
   F = eigen(Symmetric(corr_mat))
-  return F.values, F.vectors, ops_list, ops_list_rows
+  return F.values, F.vectors, ops_list, ops_list_rows, norms
 end
 
 """
@@ -416,7 +422,7 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, Del
   println("Squared coefficient tolerance = 10^-4")
 
   # Baza jest przygotowywana tylko raz dla całej siatki
-  ops, ops_list, _ = prepare_operator_basis(L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson, include_fermion_identity)
+  ops, ops_list, _, norms = prepare_operator_basis(L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson, include_fermion_identity)
   omega_values = collect(range(omega_min, omega_max; length = grid_omega))
   g_values = collect(range(g_min, g_max; length = grid_g))
 
@@ -431,15 +437,18 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, Del
   # Nazwy plików dla kolejnych eig
   filename_grids = String[]
   filename_lioms_grids = String[]
+  filename_lioms_grids_norma = String[]
   filename_diagonal = joinpath(grid_path, "diagonal_" * base_file_tag * ".txt")
   for eig_index in eig_first:eig_last
     file_tag = base_file_tag * "_eig$(eig_index)"
     push!(filename_grids, joinpath(grid_path, "grid_" * file_tag * ".txt"))
     push!(filename_lioms_grids, joinpath(lioms_grid_path, "lioms_grid_" * file_tag * ".txt"))
+    push!(filename_lioms_grids_norma, joinpath(lioms_grid_path, "lioms_grid_norma_" * file_tag * ".txt"))
   end
 
   io_evals = [open(filename, "w") for filename in filename_grids]   # Otwieramy pliki dla wszystkich eig
   io_lioms = [open(filename, "w") for filename in filename_lioms_grids]
+  io_lioms_norma = [open(filename, "w") for filename in filename_lioms_grids_norma]
   io_diagonal = open(filename_diagonal, "w")
 
   total_points = grid_omega * grid_g
@@ -459,6 +468,7 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, Del
 
         selected_eigenvector = view(evecs,:,eig_index) # wybiera jeden wektor włąasny ten odbowaidajacy eig_index
         save_grid_liom_row(io_lioms[file_index], omega_0, g, selected_eigenvector; coeff_sq_tol = 1e-4)
+        save_grid_liom_row(io_lioms_norma[file_index], omega_0, g, selected_eigenvector; coeff_sq_tol = 0.0, norms = norms)
       end
       # Zapis przekątnej macierzy dla danego omega_0 i g
       @printf(io_diagonal, "%.16e\t%.16e", omega_0, g)
@@ -479,6 +489,9 @@ function run_grid_scan(J::Float64, J_prime::Float64, L::Int, Delta::Float64, Del
     close(io)
   end
   for io in io_lioms
+    close(io)
+  end
+  for io in io_lioms_norma
     close(io)
   end
   close(io_diagonal)
@@ -641,7 +654,7 @@ function main()
   println(H)
 
   tic = time_ns()
-  evals, evecs, ops_list, ops_list_rows = compute_lioms(H, L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson, include_fermion_identity)
+  evals, evecs, ops_list, ops_list_rows, norms = compute_lioms(H, L, max_supp, time_reversal, parity, conserve_Sz_fermion, conserve_Sz_boson, include_fermion_identity)
   toc = time_ns()
 
   # sprawdzenie <O_i,O_j>_{HS} = 0 dla i,j = 1,...,N dla wyników z diagonalizacji
@@ -650,20 +663,22 @@ function main()
 
   base_path = "$(@__DIR__)/liom_mag_dane"
   evals_path = "$(base_path)/wartosci_wlasne"
-  # evecs_path = "$(base_path)/wektory_wlasne"
+  evecs_path = "$(base_path)/wektory_wlasne"
   basis_path = "$(base_path)/bazy"
   logs_path = "$(base_path)/logi"
   mkpath(evals_path)
-  # mkpath(evecs_path)
+  mkpath(evecs_path)
   mkpath(basis_path)
   mkpath(logs_path)
   file_tag = "ladder_mag_M_$(max_supp)_J_$(J)_Jp_$(J_prime)_d_$(Delta)_d2_$(Delta_prime)_w_$(omega_0)_g_$(g)_T_$(time_reversal)_P_$(parity)_Sz_cons_fermion_$(conserve_Sz_fermion)_Sz_cons_boson_$(conserve_Sz_boson)_FId_$(include_fermion_identity)"
   filename_evals = "$(evals_path)/eigenvalues_$(file_tag).txt"
   # filename_evecs = "$(evecs_path)/eigenvectors_$(file_tag).txt"
+  filename_evecs_norma = "$(evecs_path)/eigenvectors_norma_$(file_tag).txt"
   filename_operators = "$(basis_path)/operators_$(file_tag).txt"
   filename_log = "$(logs_path)/log_$(file_tag).txt"
   writedlm(filename_evals, evals)
   # writedlm(filename_evecs, evecs)
+  writedlm(filename_evecs_norma, evecs ./ reshape(norms, :, 1))
   save_operator_labels(filename_operators, ops_list)
   open(filename_log, "w") do io
     println(io, "J = ", J)
