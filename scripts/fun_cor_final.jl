@@ -502,7 +502,7 @@ function main()
     # =========================================================================================
     # WYBOR SKANOWANIA
     SKAN_OMEGA0 = false
-    SKAN_G = true
+    SKAN_G = false
 
     # ARGUMENT omega_0
     if SKAN_OMEGA0
@@ -517,7 +517,7 @@ function main()
     # ARGUMENT g
     if SKAN_G
         # g_values = range(0.0, 10.0, length=51)
-        g_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 3.0, 4.0, 5.0, 10.0]
+        g_values = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 3.0, 4.0, 5.0]
         #g_values = [0.0, 0.25, 0.5, 0.75, 1.0]
     else
         g_values = [g]
@@ -589,6 +589,8 @@ function main()
         lista_operatorow, M, baza_int,
         indeks_odwrotny, PBC
     )
+
+    norma_sq_full = sum(abs2, Q_slow_full) / size(Q_slow_full, 1)
 
     Q_slow_289_50_1_304_300_3 = (
     c_289 * operatory_z_bazy[289] +
@@ -715,10 +717,10 @@ function main()
 
     # PARAMETRY KORELACJI CZASOWYCH
     t_MIN = 0.0
-    t_MAX = 100.0
-    #t_MAX=0.0
-    t_POINTS = 501
-    #t_POINTS = 1
+    #t_MAX = 100.0
+    t_MAX=0.0
+    #t_POINTS = 501
+    t_POINTS = 1
     t_values = range(t_MIN, t_MAX, length=t_POINTS)
 
     # Macierz na wyniki funkcji korelacji
@@ -757,10 +759,13 @@ function main()
                 push!(wyniki_komutatorow, wynik)
             end
             wyniki_wolnych_modow = Float64[]
-            for Q in wolne_mody
+            for Q in wolne_mody 
                 _, wynik = oblicz_komutator(H, Q)
+                if Q === Q_slow_full
+                    wynik /= norma_sq_full
+                end
                 push!(wyniki_wolnych_modow, wynik)
-            end
+                end
             wyniki[wiersz_parametrow, :] = vcat(parametry_wiersza,wyniki_komutatorow, wyniki_wolnych_modow)
 
             #korelacja czasowa ED
